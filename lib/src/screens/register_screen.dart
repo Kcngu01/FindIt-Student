@@ -124,6 +124,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.email),
                       hintText: 'yourstudentid@siswa.unimas.my',
+                      errorMaxLines: 3,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {

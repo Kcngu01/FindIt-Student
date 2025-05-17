@@ -5,6 +5,9 @@ import 'package:provider/provider.dart';
 import '../providers/login_provider.dart';
 import '../services/item_service.dart';
 import '../models/characteristic.dart';
+import '../services/image_service.dart';
+import '../widgets/image_compression_info.dart';
+
 class AddItemScreen extends StatefulWidget {
   const AddItemScreen({super.key});
 
@@ -19,6 +22,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
   
   String _selectedType = 'found'; // Default to 'found'
   File? _imageFile;
+  File? _compressedImageFile;
+  bool _isCompressing = false;
   final ImagePicker _picker = ImagePicker();
   final ItemService itemService = ItemService();
 
@@ -64,9 +69,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   Navigator.of(context).pop();
                   final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
                   if (photo != null) {
-                    setState(() {
-                      _imageFile = File(photo.path);
-                    });
+                    await _processSelectedImage(File(photo.path));
                   }
                 },
               ),
@@ -77,9 +80,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   Navigator.of(context).pop();
                   final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
                   if (image != null) {
-                    setState(() {
-                      _imageFile = File(image.path);
-                    });
+                    await _processSelectedImage(File(image.path));
                   }
                 },
               ),
@@ -88,6 +89,42 @@ class _AddItemScreenState extends State<AddItemScreen> {
         );
       },
     );
+  }
+  
+  Future<void> _processSelectedImage(File imageFile) async {
+    setState(() {
+      _imageFile = imageFile;
+      _isCompressing = true;
+      _compressedImageFile = null;
+    });
+    
+    // Check if the image needs compression (over 5MB)
+    final fileSize = await imageFile.length();
+    if (fileSize > ImageService.maxFileSize) {
+      try {
+        // Perform the compression
+        final compressedFile = await ImageService.compressImage(imageFile);
+        
+        if (mounted) {
+          setState(() {
+            _compressedImageFile = compressedFile;
+            _isCompressing = false;
+          });
+        }
+      } catch (e) {
+        print('Error compressing image: $e');
+        if (mounted) {
+          setState(() {
+            _compressedImageFile = null;
+            _isCompressing = false;
+          });
+        }
+      }
+    } else {
+      setState(() {
+        _isCompressing = false;
+      });
+    }
   }
 
   Future<void> _validateCharacteristics() async {
@@ -377,6 +414,41 @@ class _AddItemScreenState extends State<AddItemScreen> {
                                 ),
                         ),
                       ),
+                      
+                      // Show compression indicator
+                      if (_isCompressing)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12.0),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.blue[700],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Checking image size...',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                      // Show compression information
+                      if (!_isCompressing && _imageFile != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12.0),
+                          child: ImageCompressionInfo(
+                            originalImage: _imageFile,
+                            compressedImage: _compressedImageFile,
+                            isCompressed: _compressedImageFile != null,
+                          ),
+                        ),
+                        
                       const SizedBox(height: 16),
                       
                       // Item Name

@@ -7,6 +7,8 @@ import '../services/item_service.dart';
 import '../models/characteristic.dart';
 import '../models/item.dart';
 import '../config/api_config.dart';
+import '../services/image_service.dart';
+import '../widgets/image_compression_info.dart';
 
 class EditItemScreen extends StatefulWidget {
   final int itemId;
@@ -26,6 +28,8 @@ class _EditItemScreenState extends State<EditItemScreen> {
   final _descriptionController = TextEditingController();
   
   File? _imageFile;
+  File? _compressedImageFile;
+  bool _isCompressing = false;
   final ImagePicker _picker = ImagePicker();
   final ItemService _itemService = ItemService();
 
@@ -105,8 +109,42 @@ class _EditItemScreenState extends State<EditItemScreen> {
   Future<void> _pickImage() async {
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
+      await _processSelectedImage(File(pickedFile.path));
+    }
+  }
+  
+  Future<void> _processSelectedImage(File imageFile) async {
+    setState(() {
+      _imageFile = imageFile;
+      _isCompressing = true;
+      _compressedImageFile = null;
+    });
+    
+    // Check if the image needs compression (over 5MB)
+    final fileSize = await imageFile.length();
+    if (fileSize > ImageService.maxFileSize) {
+      try {
+        // Perform the compression
+        final compressedFile = await ImageService.compressImage(imageFile);
+        
+        if (mounted) {
+          setState(() {
+            _compressedImageFile = compressedFile;
+            _isCompressing = false;
+          });
+        }
+      } catch (e) {
+        print('Error compressing image: $e');
+        if (mounted) {
+          setState(() {
+            _compressedImageFile = null;
+            _isCompressing = false;
+          });
+        }
+      }
+    } else {
       setState(() {
-        _imageFile = File(pickedFile.path);
+        _isCompressing = false;
       });
     }
   }
@@ -270,6 +308,41 @@ class _EditItemScreenState extends State<EditItemScreen> {
                       foregroundColor: Colors.white,
                     ),
                   ),
+                  
+                  // Show compression indicator
+                  if (_isCompressing)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Checking image size...',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                  // Show compression information
+                  if (!_isCompressing && _imageFile != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: ImageCompressionInfo(
+                        originalImage: _imageFile,
+                        compressedImage: _compressedImageFile,
+                        isCompressed: _compressedImageFile != null,
+                      ),
+                    ),
                 ],
               ),
             ),

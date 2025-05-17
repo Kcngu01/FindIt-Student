@@ -6,6 +6,7 @@ import '../models/item.dart';
 import 'login_service.dart';
 import '../models/characteristic.dart';
 import '../config/api_config.dart';
+import 'image_service.dart';
 
 class ItemService {
   static const String baseUrl = ApiConfig.itemsEndpoint;
@@ -244,6 +245,13 @@ class ItemService {
     }
 
     try {
+      // Compress image if provided and larger than 5MB
+      File? processedImageFile = imageFile;
+      if (imageFile != null) {
+        //processedImageFile is a compressed image file
+        processedImageFile = await ImageService.compressImageIfNeeded(imageFile);
+      }
+      
       // Create multipart request
       var request = http.MultipartRequest(
         'POST',
@@ -272,14 +280,20 @@ class ItemService {
       }
       
       // Add image if provided
-      if (imageFile != null) {
-        final fileName = imageFile.path.split('/').last;
+      if (processedImageFile != null) {
+        final fileName = processedImageFile.path.split('/').last;
         final fileExtension = fileName.split('.').last.toLowerCase();
+        
+        // Print file sizes for debugging
+        if (imageFile != processedImageFile) {
+          print("Original image size: ${await imageFile!.length()} bytes");
+          print("Compressed image size: ${await processedImageFile.length()} bytes");
+        }
         
         request.files.add(
           await http.MultipartFile.fromPath(
             'image',
-            imageFile.path,
+            processedImageFile.path,
             contentType: MediaType('image', fileExtension),
           ),
         );
@@ -294,6 +308,10 @@ class ItemService {
       if (response.statusCode == 201 || response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
         if (data['success'] == true) {
+          if (data.containsKey('similarity_matches') && data['similarity_matches'] > 0) {
+            // Show match information to the user
+            print("Found ${data['similarity_matches']} potential matches!");
+          }
           return; // Success
         } else {
           throw Exception(data['message'] ?? 'Failed to create item');
@@ -338,6 +356,11 @@ class ItemService {
     }
 
     try {
+      // Compress image if provided and larger than 5MB
+      File? processedImageFile = imageFile;
+      if (imageFile != null) {
+        processedImageFile = await ImageService.compressImageIfNeeded(imageFile);
+      }
       
       final uri = Uri.parse('${ApiConfig.editItemsEndpoint}/$id');
       
@@ -377,14 +400,20 @@ class ItemService {
       }
       
       // Add image if provided
-      if (imageFile != null) {
-        final fileName = imageFile.path.split('/').last;
+      if (processedImageFile != null) {
+        final fileName = processedImageFile.path.split('/').last;
         final fileExtension = fileName.split('.').last.toLowerCase();
+        
+        // Print file sizes for debugging
+        if (imageFile != processedImageFile) {
+          print("Original image size: ${await imageFile!.length()} bytes");
+          print("Compressed image size: ${await processedImageFile.length()} bytes");
+        }
         
         request.files.add(
           await http.MultipartFile.fromPath(
             'image',
-            imageFile.path,
+            processedImageFile.path,
             contentType: MediaType('image', fileExtension),
           ),
         );
