@@ -10,10 +10,18 @@ import '../providers/item_provider.dart';
 
 class ItemDetailsScreen extends StatefulWidget {
   final int itemId;
+  final VoidCallback? onBack;
+  final String? similarityScore;
+  final int? matchId;
+  final int? lostItemId;
 
   const ItemDetailsScreen({
     super.key,
     required this.itemId,
+    this.onBack,
+    this.similarityScore,
+    this.matchId,
+    this.lostItemId,
   });
 
   @override
@@ -251,7 +259,25 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
       );
 
       if (justification != null && justification.isNotEmpty) {
-        await _itemService.claimItem(itemId: widget.itemId, studentId: currentStudentId, status: 'pending', justification: justification);
+        // If we have similarityScore, matchId, and lostItemId, this is a potential match claim
+        if (widget.similarityScore != null && widget.matchId != null && widget.lostItemId != null) {
+          await _itemService.claimMatchItem(
+            foundItemId: widget.itemId,
+            studentId: currentStudentId,
+            matchId: widget.matchId!,
+            lostItemId: widget.lostItemId!,
+            status: 'pending',
+            justification: justification,
+          );
+        } else {
+          // Regular item claim if not from potential matches
+          await _itemService.claimItem(
+            itemId: widget.itemId, 
+            studentId: currentStudentId, 
+            status: 'pending', 
+            justification: justification
+          );
+        }
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -289,20 +315,34 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
         final isLoading = itemProvider.isLoadingItemDetails;
         final errorMessage = itemProvider.itemDetailsError;
         
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(item?.name ?? 'Item Details'),
-            leading: BackButton(
-              onPressed: () => Navigator.of(context).pop(),
+        return PopScope(
+          canPop: widget.onBack == null,
+          onPopInvoked: (didPop) {
+            if (!didPop && widget.onBack != null) {
+              widget.onBack!();
+            }
+          },
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text(item?.name ?? 'Item Details'),
+              leading: BackButton(
+                onPressed: () {
+                  if (widget.onBack != null) {
+                    widget.onBack!();
+                  } else {
+                    Navigator.of(context).pop();
+                  }
+                },
+              ),
             ),
+            body: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : errorMessage != null
+                    ? Center(child: Text(errorMessage))
+                    : item != null 
+                        ? _buildItemDetails(item) 
+                        : const Center(child: Text('Item not found')),
           ),
-          body: isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : errorMessage != null
-                  ? Center(child: Text(errorMessage))
-                  : item != null 
-                      ? _buildItemDetails(item) 
-                      : const Center(child: Text('Item not found')),
         );
       },
     );
@@ -354,6 +394,135 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            
+            // Display similarity score immediately after the image if available
+            if (widget.similarityScore != null)
+              Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade300),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.2),
+                          spreadRadius: 1,
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.assessment, color: Colors.blue.shade700),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Similarity Score',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.similarityScore!,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Add a progress indicator based on the score percentage
+                        Builder(
+                          builder: (context) {
+                            // Extract numeric value from score (removing '%' if present)
+                            final scoreText = widget.similarityScore!;
+                            double scoreValue = 0.0;
+                            
+                            try {
+                              // Try to parse the score value
+                              if (scoreText.contains('%')) {
+                                scoreValue = double.parse(scoreText.replaceAll('%', '').trim()) / 100;
+                              } else {
+                                scoreValue = double.parse(scoreText) / 100;
+                              }
+                              // Clamp value between 0 and 1
+                              scoreValue = scoreValue.clamp(0.0, 1.0);
+                            } catch (e) {
+                              // Fallback to 0 if parsing fails
+                              scoreValue = 0.0;
+                            }
+                            
+                            // Determine color based on score
+                            Color progressColor;
+                            if (scoreValue >= 0.7) {
+                              progressColor = Colors.green;
+                            } else if (scoreValue >= 0.4) {
+                              progressColor = Colors.orange;
+                            } else {
+                              progressColor = Colors.red;
+                            }
+                            
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                LinearProgressIndicator(
+                                  value: scoreValue,
+                                  backgroundColor: Colors.grey[200],
+                                  color: progressColor,
+                                  minHeight: 8,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      scoreValue >= 0.7 ? Icons.check_circle : 
+                                      scoreValue >= 0.4 ? Icons.info : Icons.warning,
+                                      color: progressColor,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      scoreValue >= 0.7 ? 'High match probability' : 
+                                      scoreValue >= 0.4 ? 'Moderate match probability' : 'Low match probability',
+                                      style: TextStyle(
+                                        color: progressColor,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          }
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'This indicates how closely this item matches your lost item',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 16),
+                ],
+              ),
             
             // Description Section
             const Text(
@@ -450,6 +619,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                     value: _location?.name ?? 'Unknown',
                   ),
                   const SizedBox(height: 16),
+                  
                   _buildInfoSection(
                     title: 'Reporter Email',
                     value: _reporterEmail ?? 'Unknown',

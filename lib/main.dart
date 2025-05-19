@@ -191,6 +191,8 @@ class _MyAppState extends State<MyApp> {
             // Extract the claim ID
             final args = settings.arguments;
             late int claimId;
+            String? similarityScore;
+            bool fromMyItemDetails = false;
             
             // Handle different argument types
             if (args is int) {
@@ -202,12 +204,21 @@ class _MyAppState extends State<MyApp> {
               } catch (e) {
                 throw ArgumentError('String claim ID could not be parsed to int: $args');
               }
+            } else if (args is Map<String, dynamic>) {
+              // Handle the map argument format from My Claims tab
+              claimId = args['claimId'] as int;
+              similarityScore = args['similarityScore'] as String?;
+              fromMyItemDetails = args['fromMyItemDetails'] as bool? ?? false;
             } else {
-              throw ArgumentError('Argument must be either an integer or string claimId');
+              throw ArgumentError('Argument must be either an integer, string claimId, or a map with claimId');
             }
             
             return MaterialPageRoute(
-              builder: (context) => ClaimDetailsScreen(claimId: claimId),
+              builder: (context) => ClaimDetailsScreen(
+                claimId: claimId,
+                similarityScore: similarityScore,
+                fromMyItemDetails: fromMyItemDetails,
+              ),
             );
           } else if (settings.name == '/edit_item') {
             // Extract the arguments - should be an item ID
@@ -225,6 +236,37 @@ class _MyAppState extends State<MyApp> {
             
             return MaterialPageRoute(
               builder: (context) => EditItemScreen(itemId: itemId),
+            );
+          } else if (settings.name == '/potential_match_details') {
+            // Extract the arguments
+            final args = settings.arguments as Map<String, dynamic>;
+            final foundItemId = args['foundItemId'] as int;
+            final lostItemId = args['lostItemId'] as int;
+            final tabIndex = args['tabIndex'] as int;
+            final similarityScore = args['similarityScore'] as String?;
+            final matchId = args['matchId'] as int?;
+            
+            return MaterialPageRoute(
+              builder: (context) => ItemDetailsScreen(
+                itemId: foundItemId,
+                lostItemId: lostItemId,
+                matchId: matchId,
+                similarityScore: similarityScore,
+                onBack: () {
+                  // Pop back to the lost item details screen
+                  Navigator.pop(context);
+                  // Navigate back to the lost item with the correct tab
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MyItemDetailsScreen(
+                        itemId: lostItemId,
+                        initialTabIndex: tabIndex,
+                      ),
+                    ),
+                  );
+                },
+              ),
             );
           }
           // If route not found, return error page

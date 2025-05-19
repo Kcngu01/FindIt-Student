@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../models/item.dart';
+import '../models/potential_match.dart';
+import '../models/claim.dart';
+import '../models/claim_by_match.dart';
 import 'login_service.dart';
 import '../models/characteristic.dart';
 import '../config/api_config.dart';
@@ -725,6 +728,138 @@ class ItemService {
     } catch (e) {
       print("Error checking claim status: $e");
       return false;
+    }
+  }
+
+  Future<List<PotentialMatch>> getPotentialMatches(int lostItemId) async {
+    final token = await _loginService.token;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.potentialMatchesEndpoint}/$lostItemId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 10));
+      
+      print("Potential Matches API response: ${response.statusCode}");
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data['success'] == true && data.containsKey('matches')) {
+          List<PotentialMatch> matches = (data['matches'] as List)
+              .map((matchJson) => PotentialMatch.fromJson(matchJson))
+              .toList();
+          return matches;
+        } else {
+          throw Exception('Invalid response format');
+        }
+      } else if (response.statusCode == 404) {
+        throw Exception('Item not found');
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Token expired or invalid');
+      } else {
+        throw Exception('Failed to load potential matches with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print("Error fetching potential matches: $e");
+      throw Exception('Failed to load potential matches: $e');
+    }
+  }
+
+  Future<List<ClaimByMatch>> getStudentClaimsByPotentialMatches(int studentId, int lostItemId) async {
+    final token = await _loginService.token;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.studentClaimByPotentialMatchesEndpoint}/$studentId/$lostItemId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 10));
+      
+      print("Claims by Potential Matches API response: ${response.statusCode}");
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data['success'] == true && data.containsKey('claims')) {
+          List<ClaimByMatch> claims = (data['claims'] as List)
+              .map((claimJson) => ClaimByMatch.fromJson(claimJson))
+              .toList();
+          return claims;
+        } else {
+          throw Exception('Invalid response format');
+        }
+      } else if (response.statusCode == 404) {
+        throw Exception('Item not found');
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Token expired or invalid');
+      } else {
+        throw Exception('Failed to load claims with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print("Error fetching claims by potential matches: $e");
+      throw Exception('Failed to load claims: $e');
+    }
+  }
+
+  Future<void> claimMatchItem({
+    required int foundItemId, 
+    required int studentId, 
+    required int matchId,
+    required int lostItemId,
+    required String status, 
+    required String justification
+  }) async {
+    final token = await _loginService.token;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.claimMatchEndpoint),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'found_item_id': foundItemId,
+          'student_id': studentId,
+          'match_id': matchId,
+          'lost_item_id': lostItemId,
+          'status': status,
+          'student_justification': justification,
+        }),
+      ).timeout(const Duration(seconds: 10));
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return; // Success
+        } else {
+          throw Exception(data['message'] ?? 'Failed to claim matched item');
+        }
+      } else if (response.statusCode == 404) {
+        throw Exception('Match or items not found');
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Token expired or invalid');
+      } else if (response.statusCode == 403) {
+        throw Exception('You are not authorized to claim this item');
+      } else {
+        throw Exception('Failed to claim matched item with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print("Error claiming matched item: $e");
+      throw Exception('Failed to claim matched item: $e');
     }
   }
 } 

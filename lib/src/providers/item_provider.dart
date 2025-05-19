@@ -2,11 +2,16 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import '../models/item.dart';
+import '../models/potential_match.dart';
 import '../models/characteristic.dart';
+import '../models/claim.dart';
+import '../models/claim_by_match.dart';
 import '../services/item_service.dart';
+import '../services/claim_service.dart';
 
 class ItemProvider extends ChangeNotifier {
   final ItemService _itemService = ItemService();
+  final ClaimService _claimService = ClaimService();
   
   // Items for Home Screen
   List<Item> _items = [];
@@ -31,11 +36,22 @@ class ItemProvider extends ChangeNotifier {
   bool _isLoadingItemDetails = false;
   String? _itemDetailsError;
   
+  // Potential Matches
+  List<PotentialMatch> _potentialMatches = [];
+  bool _isLoadingPotentialMatches = false;
+  String? _potentialMatchesError;
+  
   // Characteristics for filters
   List<Characteristic> _categories = [];
   List<Characteristic> _colors = [];
   List<Characteristic> _locations = [];
   bool _loadingCharacteristics = false;
+  
+  // Claims
+  List<Claim> _claims = [];
+  List<ClaimByMatch> _claimsByMatch = [];
+  bool _isLoadingClaims = false;
+  String? _claimsError;
   
   // Getters for Home Screen
   List<Item> get items => _items;
@@ -58,11 +74,22 @@ class ItemProvider extends ChangeNotifier {
   bool get isLoadingItemDetails => _isLoadingItemDetails;
   String? get itemDetailsError => _itemDetailsError;
   
+  // Getters for Potential Matches
+  List<PotentialMatch> get potentialMatches => _potentialMatches;
+  bool get isLoadingPotentialMatches => _isLoadingPotentialMatches;
+  String? get potentialMatchesError => _potentialMatchesError;
+  
   // Getters for Characteristics
   List<Characteristic> get categories => _categories;
   List<Characteristic> get colors => _colors;
   List<Characteristic> get locations => _locations;
   bool get loadingCharacteristics => _loadingCharacteristics;
+  
+  // Getters for Claims
+  List<Claim> get claims => _claims;
+  List<ClaimByMatch> get claimsByMatch => _claimsByMatch;
+  bool get isLoadingClaims => _isLoadingClaims;
+  String? get claimsError => _claimsError;
   
   // Methods for Home Screen
   
@@ -334,5 +361,55 @@ class ItemProvider extends ChangeNotifier {
       orElse: () => Characteristic(id: id, name: 'Unknown')
     );
     return location.name;
+  }
+  
+  // Methods for Potential Matches
+  Future<void> loadPotentialMatches(int lostItemId) async {
+    _isLoadingPotentialMatches = true;
+    _potentialMatchesError = null;
+    notifyListeners();
+    
+    try {
+      _potentialMatches = await _itemService.getPotentialMatches(lostItemId);
+      _isLoadingPotentialMatches = false;
+      notifyListeners();
+    } catch (e) {
+      _potentialMatchesError = e.toString();
+      _isLoadingPotentialMatches = false;
+      notifyListeners();
+    }
+  }
+  
+  // Methods for Claims
+  Future<void> loadStudentClaims(int studentId) async {
+    _isLoadingClaims = true;
+    _claimsError = null;
+    notifyListeners();
+    
+    try {
+      _claims = await _claimService.getStudentClaims(studentId);
+      _isLoadingClaims = false;
+      notifyListeners();
+    } catch (e) {
+      _claimsError = e.toString();
+      _isLoadingClaims = false;
+      notifyListeners();
+    }
+  }
+  
+  Future<void> loadLostItemClaims(int studentId, int lostItemId) async {
+    _isLoadingClaims = true;
+    _claimsError = null;
+    notifyListeners();
+    
+    try {
+      _claimsByMatch = await _itemService.getStudentClaimsByPotentialMatches(studentId, lostItemId);
+      _isLoadingClaims = false;
+      notifyListeners();
+    } catch (e) {
+      _claimsError = e.toString();
+      _isLoadingClaims = false;
+      notifyListeners();
+    }
   }
 }

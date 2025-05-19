@@ -1,5 +1,5 @@
-//similar to claim model, but dont have 'similarityScore' attribute
-class Claim{
+//model for claims by item potential matches ( in tab 'my claims' under my_item_details_screen)
+class ClaimByMatch{
   final int id;
   final String name;
   final String description;
@@ -9,15 +9,16 @@ class Claim{
   final String category;
   final String image;
   final String foundItemDate;
-  final String adminId;
   final String adminName;
   final String email;
   final String adminJustification;
   final String studentJustification;
+  final String similarityScore;
   final String createdAt;
   final String status;
+  final String reporterEmail;
 
-  Claim({
+  ClaimByMatch({
     required this.id,
     required this.name,
     required this.description,
@@ -27,17 +28,18 @@ class Claim{
     required this.category,
     required this.image,
     required this.foundItemDate,
-    required this.adminId,
     required this.adminName,
     required this.email,
     required this.adminJustification,
     required this.studentJustification,
+    required this.similarityScore,
     required this.createdAt,
     required this.status,
+    required this.reporterEmail,
   });
 
-  factory Claim.fromJson(Map<String, dynamic> json) {
-    return Claim(
+  factory ClaimByMatch.fromJson(Map<String, dynamic> json) {
+    return ClaimByMatch(
       id: json['id'] ?? 0,
       
       // Item details
@@ -46,6 +48,7 @@ class Claim{
       type: json['found_item']?['type'] ?? 'unknown',
       image: json['found_item']?['image'] ?? '',
       foundItemDate: json['found_item']?['created_at'] ?? '-',
+      reporterEmail: json['found_item']?['student']?['email'] ?? '-',
       
       // Item characteristics
       color: json['found_item']?['color']?['name'] ?? 'Unknown Color',
@@ -53,7 +56,6 @@ class Claim{
       category: json['found_item']?['category']?['name'] ?? 'Unknown Category',
       
       // Admin information
-      adminId: json['admin_id']?.toString() ?? '0',
       adminName: json['admin']?['name'] ?? 'Unknown Admin',
       email: json['admin']?['email'] ?? '-',
       
@@ -61,7 +63,12 @@ class Claim{
       adminJustification: json['admin_justification'] ?? '-',
       studentJustification: json['student_justification'] ?? '-',
       createdAt: json['created_at'] ?? DateTime.now().toString(),
-      status: json['status'] ?? 'pending'
+      status: json['status'] ?? 'pending',
+      similarityScore: (json['match']['similarity_score'] is num ? '${(json['match']['similarity_score'] * 100).toStringAsFixed(2)}%' : json['match']['similarity_score'].toString()),
+
+
+
     );
   }
 }
+

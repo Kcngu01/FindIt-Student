@@ -33,6 +33,9 @@ class ApiConfig {
   static const String editItemsEndpoint = '$baseApiUrl/items/edit';
   static const String deleteItemsEndpoint = '$baseApiUrl/items/delete';
   static const String claimItemsEndpoint = '$baseApiUrl/items/claim';
+  static const String claimMatchEndpoint = '$baseApiUrl/items/claim/match';
+  static const String potentialMatchesEndpoint = '$baseApiUrl/items/potential-matches';
+  static const String studentClaimByPotentialMatchesEndpoint = '$baseApiUrl/items/potential-matches/claims';
 
   // Characteristics endpoints
   static const String characteristicsBasePath = '$baseApiUrl/characteristics';

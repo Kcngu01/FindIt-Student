@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 
 import '../config/api_config.dart';
 import '../models/characteristic.dart';
+import '../models/claim.dart';
+import '../models/claim_by_match.dart';
 import '../models/item.dart';
 import '../providers/item_provider.dart';
 import '../providers/login_provider.dart';
@@ -12,17 +14,19 @@ import 'edit_item_screen.dart';
 
 class MyItemDetailsScreen extends StatefulWidget {
   final int itemId;
+  final int? initialTabIndex;
 
   const MyItemDetailsScreen({
     super.key,
     required this.itemId,
+    this.initialTabIndex,
   });
 
   @override
   _MyItemDetailsScreenState createState() => _MyItemDetailsScreenState();
 }
 
-class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> {
+class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> with TickerProviderStateMixin {
   final ItemService _itemService = ItemService();
   Characteristic? _category;
   Characteristic? _color;
@@ -30,15 +34,57 @@ class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> {
 
   bool _loadingAdditionalDetails = false;
   String? _errorLoadingDetails;
+  
+  // Tab controller
+  TabController? _tabController;
+  int _selectedTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
-
+    
+    // Initialize selected tab index from widget parameter if provided
+    if (widget.initialTabIndex != null) {
+      _selectedTabIndex = widget.initialTabIndex!;
+    }
+    
+    // We'll initialize the TabController once we know how many tabs we need
+    // based on the item type
+    
     // Use post-frame callback to avoid build-time state changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _loadItemDetails();
+      }
+    });
+  }
+  
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
+  }
+
+  // Initialize tab controller based on item type
+  void _initTabController(String? itemType) {
+    if (_tabController != null) {
+      _tabController!.dispose();
+    }
+    
+    // If item is lost, we need 3 tabs, otherwise just 1
+    final tabCount = itemType == 'lost' ? 3 : 1;
+    
+    _tabController = TabController(
+      length: tabCount,
+      vsync: this,
+      initialIndex: _selectedTabIndex < tabCount ? _selectedTabIndex : 0,
+    );
+    
+    _tabController!.addListener(() {
+      if (_tabController!.indexIsChanging) {
+        setState(() {
+          _selectedTabIndex = _tabController!.index;
+        });
       }
     });
   }
@@ -49,6 +95,25 @@ class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> {
       // First, load the base item information
       await Provider.of<ItemProvider>(context, listen: false)
           .loadItemDetails(widget.itemId);
+
+      // Get the current item
+      final itemProvider = Provider.of<ItemProvider>(context, listen: false);
+      final loginProvider = Provider.of<LoginProvider>(context, listen: false);
+      final item = itemProvider.currentItem;
+      
+      if (mounted) {
+        // Initialize tab controller based on item type
+        _initTabController(item?.type);
+        
+        // If item is lost, load additional data for the other tabs
+        if (item?.type == 'lost') {
+          // Load potential matches for the lost item
+          itemProvider.loadPotentialMatches(widget.itemId);
+          
+          // Load claims for this lost item (instead of student claims)
+          itemProvider.loadLostItemClaims(loginProvider.student?.id ?? 0, widget.itemId);
+        }
+      }
 
       // Then, load additional details if item was loaded successfully
       if (mounted) {
@@ -163,34 +228,6 @@ class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> {
     }
   }
   
-  // Future<void> _claimItem() async {
-  //   try {
-  //     final loginProvider = Provider.of<LoginProvider>(context, listen: false);
-  //     final currentStudentId = loginProvider.student?.id;
-
-  //     if (currentStudentId == null) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         const SnackBar(
-  //             content: Text('You must be logged in to claim an item')),
-  //       );
-  //       return;
-  //     }
-
-  //     await _itemService.claimItem(widget.itemId, currentStudentId);
-
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text('Item claimed successfully')),
-  //     );
-
-  //     // Refresh the item details
-  //     _loadItemDetails();
-  //   } catch (e) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text('Failed to claim item: $e')),
-  //     );
-  //   }
-  // }
-
   String _formatDate(String dateString) {
     try {
       final date = DateTime.parse(dateString);
@@ -214,13 +251,30 @@ class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> {
             leading: BackButton(
               onPressed: () => Navigator.of(context).pop(),
             ),
+            bottom: _tabController != null && item?.type == 'lost' ? TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: 'Item Details'),
+                Tab(text: 'Potential Matches'),
+                Tab(text: 'My Claims'),
+              ],
+            ) : null,
           ),
           body: isLoading
               ? const Center(child: CircularProgressIndicator())
               : errorMessage != null
                   ? Center(child: Text(errorMessage))
                   : item != null
-                      ? _buildItemDetails(item)
+                      ? item.type == 'lost' && _tabController != null
+                          ? TabBarView(
+                              controller: _tabController,
+                              children: [
+                                _buildItemDetails(item),
+                                _buildPotentialMatches(),
+                                _buildMyClaims(),
+                              ],
+                            )
+                          : _buildItemDetails(item)
                       : const Center(child: Text('Item not found')),
         );
       },
@@ -450,6 +504,495 @@ class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> {
       ),
     );
   }
+
+  Widget _buildPotentialMatches() {
+    return Consumer<ItemProvider>(
+      builder: (context, itemProvider, child) {
+        if (itemProvider.isLoadingPotentialMatches) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (itemProvider.potentialMatchesError != null) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 16),
+                Text(itemProvider.potentialMatchesError!, style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => itemProvider.loadPotentialMatches(widget.itemId),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+        
+        final matches = itemProvider.potentialMatches;
+        
+        if (matches.isEmpty) {
+          return const Center(
+            child: Text('No potential matches found for your item'),
+          );
+        }
+        
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: matches.length,
+          itemBuilder: (context, index) {
+            final match = matches[index];
+            // Use different status for demonstration (in a real app, would come from the API)
+            // final statusOptions = ['Dismissed', 'Rejected', 'Pending'];
+            // final status = statusOptions[index % statusOptions.length];
+            
+            return Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              child: InkWell(
+                onTap: () {
+                  Navigator.pushNamed(
+                    context, 
+                    '/potential_match_details',
+                    arguments: {
+                      'foundItemId': match.foundItemId,
+                      'lostItemId': widget.itemId,
+                      'tabIndex': _tabController?.index ?? 1,
+                      'similarityScore': match.similarityScore,
+                      'matchId': match.id,
+                    },
+                  );
+                },
+                child: Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Image placeholder
+                          Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: match.image != null && match.image!.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: Image.network(
+                                      ApiConfig.getItemImageUrl(match.image!, match.type),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return const Center(
+                                          child: Icon(
+                                            Icons.image_not_supported,
+                                            color: Colors.grey,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  )
+                                : const Center(
+                                    child: Icon(
+                                      Icons.image,
+                                      color: Colors.grey,
+                                      size: 40,
+                                    ),
+                                  ),
+                          ),
+                          const SizedBox(width: 16),
+                          
+                          // Item details in a simple format
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Name',
+                                  style: TextStyle(
+                                    color: Colors.grey[800],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  match.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Description',
+                                  style: TextStyle(
+                                    color: Colors.grey[800],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  match.description ?? 'No description',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Similarity Score',
+                                  style: TextStyle(
+                                    color: Colors.grey[800],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  match.similarityScore,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Status badge
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: match.matchStatus == 'pending' 
+                              ? Colors.grey[300]
+                              : match.matchStatus == 'rejected'
+                                  ? Colors.red[100]
+                                  : match.matchStatus == 'approved'
+                                      ? Colors.green[100]
+                                      : match.matchStatus == 'dismissed'
+                                          ? Colors.orange[100]
+                                          : match.matchStatus == 'available'
+                                              ? Colors.blue[100]
+                                              : Colors.grey[300], // available
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                            child: Text(
+                          match.matchStatus.substring(0, 1).toUpperCase() + match.matchStatus.substring(1),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: match.matchStatus == 'pending' 
+                                ? Colors.black87
+                                : match.matchStatus == 'rejected'
+                                    ? Colors.red[800]
+                                    : match.matchStatus == 'approved'
+                                        ? Colors.green[800]
+                                        : match.matchStatus == 'dismissed'
+                                            ? Colors.orange[800]
+                                            : match.matchStatus == 'available'
+                                              ? Colors.blue[800]
+                                              : Colors.black87// available
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildMyClaims() {
+    return Consumer<ItemProvider>(
+      builder: (context, itemProvider, child) {
+        if (itemProvider.isLoadingClaims) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (itemProvider.claimsError != null) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 16),
+                Text(itemProvider.claimsError!, style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    final loginProvider = Provider.of<LoginProvider>(context, listen: false);
+                    itemProvider.loadLostItemClaims(loginProvider.student?.id ?? 0, widget.itemId);
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+        
+        final claims = itemProvider.claimsByMatch;
+        
+        if (claims.isEmpty) {
+          return const Center(
+            child: Text('No claims have been submitted for this item'),
+          );
+        }
+        
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: claims.length,
+          itemBuilder: (context, index) {
+            final claim = claims[index];
+            
+            // Get colors and status text based on claim status
+            Color statusBgColor;
+            Color statusTextColor;
+            
+            switch (claim.status.toLowerCase()) {
+              case 'approved':
+                statusBgColor = Colors.green[100]!;
+                statusTextColor = Colors.green[800]!;
+                break;
+              case 'rejected':
+                statusBgColor = Colors.red[100]!;
+                statusTextColor = Colors.red[800]!;
+                break;
+              case 'pending':
+              default:
+                statusBgColor = Colors.orange[100]!;
+                statusTextColor = Colors.orange[800]!;
+            }
+            
+            return Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(
+                  color: Colors.grey.shade300,
+                  width: 1.0,
+                ),
+              ),
+              child: InkWell(
+                onTap: () {
+                  // Navigate to claim details with similarity score
+                  Navigator.pushNamed(
+                    context,
+                    '/claim_details',
+                    arguments: {
+                      'claimId': claim.id,
+                      'similarityScore': claim.similarityScore,
+                      'fromMyItemDetails': true,
+                    },
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Item image on the left
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 100,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: claim.image.isNotEmpty
+                                  ? Image.network(
+                                      ApiConfig.getItemImageUrl(claim.image, claim.type),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Center(
+                                          child: Icon(
+                                            Icons.image_not_supported,
+                                            color: Colors.grey[400],
+                                            size: 32,
+                                          ),
+                                        );
+                                      },
+                                    )
+                                  : Center(
+                                      child: Icon(
+                                        Icons.image,
+                                        color: Colors.grey[400],
+                                        size: 32,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          
+                          // Claim details on the right
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Status badge in the top right
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Claim ID',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: statusBgColor,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        claim.status.substring(0, 1).toUpperCase() + claim.status.substring(1).toLowerCase(),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: statusTextColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  claim.id.toString(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                
+                                // Name
+                                Text(
+                                  'Name',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  claim.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 8),
+                                
+                                // Similarity Score
+                                Text(
+                                  'Similarity Score',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  claim.similarityScore,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                
+                                // Date Reported
+                                Text(
+                                  'Claim Date',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDate(claim.createdAt), // Using reportDate instead of createdAt
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+  
+  Widget _buildStatusBadge(String status) {
+    Color bgColor;
+    Color textColor;
+    IconData icon;
+    String text;
+    
+    switch (status.toLowerCase()) {
+      case 'approved':
+        bgColor = Colors.green[100]!;
+        textColor = Colors.green[800]!;
+        icon = Icons.check_circle;
+        text = 'Approved';
+        break;
+      case 'rejected':
+        bgColor = Colors.red[100]!;
+        textColor = Colors.red[800]!;
+        icon = Icons.cancel;
+        text = 'Rejected';
+        break;
+      case 'pending':
+      default:
+        bgColor = Colors.orange[100]!;
+        textColor = Colors.orange[800]!;
+        icon = Icons.hourglass_empty;
+        text = 'Pending';
+    }
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+ 
 
   Widget _buildInfoSection({required String title, required String value}) {
     return Column(
