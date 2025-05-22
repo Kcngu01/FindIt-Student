@@ -120,4 +120,10 @@ class ImageService {
     // Try one final time with the minimum quality
     return await _compressWithQuality(imageFile, targetPath, 5, format);
   }
+
+  /// Check if a file is already compressed (based on filename)
+  // static bool isCompressed(File imageFile) {
+  //   final String fileName = path.basename(imageFile.path);
+  //   return fileName.startsWith('compressed_');
+  // }
 } 

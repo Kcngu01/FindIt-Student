@@ -248,11 +248,16 @@ class ItemService {
     }
 
     try {
-      // Compress image if provided and larger than 5MB
+      // Process image if provided
       File? processedImageFile = imageFile;
       if (imageFile != null) {
-        //processedImageFile is a compressed image file
-        processedImageFile = await ImageService.compressImageIfNeeded(imageFile);
+        // Skip compression if the image is already compressed
+        // if (!ImageService.isCompressed(imageFile)) {
+          //processedImageFile is a compressed image file
+          processedImageFile = await ImageService.compressImageIfNeeded(imageFile);
+        // } else {
+        //   print("Image is already compressed, skipping compression step");
+        // }
       }
       
       // Create multipart request
@@ -359,10 +364,15 @@ class ItemService {
     }
 
     try {
-      // Compress image if provided and larger than 5MB
+      // Process image if provided
       File? processedImageFile = imageFile;
       if (imageFile != null) {
-        processedImageFile = await ImageService.compressImageIfNeeded(imageFile);
+        // Skip compression if the image is already compressed
+        // if (!ImageService.isCompressed(imageFile)) {
+          processedImageFile = await ImageService.compressImageIfNeeded(imageFile);
+        // } else {
+          // print("Image is already compressed, skipping compression step");
+        // }
       }
       
       final uri = Uri.parse('${ApiConfig.editItemsEndpoint}/$id');
@@ -860,6 +870,71 @@ class ItemService {
     } catch (e) {
       print("Error claiming matched item: $e");
       throw Exception('Failed to claim matched item: $e');
+    }
+  }
+  
+  // Get both the matching lost item and similarity score for a recovered found item
+  Future<Map<String, dynamic>> getMatchingLostItemWithScore(int foundItemId) async {
+    final token = await _loginService.token;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.matchingLostItemEndpoint}/$foundItemId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 10));
+      
+      print("Matching Lost Item with Score API response: ${response.statusCode}");
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          Item? item;
+          String? similarityScore;
+          
+          // Extract the lost item if available
+          if (data.containsKey('lost_item') && data['lost_item'] != null) {
+            item = Item.fromJson(data['lost_item']);
+          }
+          
+          // Extract the similarity score if available
+          if (data.containsKey('similarity_score') && data['similarity_score'] != null) {
+            // Format the score as a percentage
+            final score = data['similarity_score'];
+            if (score is num) {
+              similarityScore = '${(score * 100).toStringAsFixed(2)}%';
+            } else {
+              similarityScore = score.toString();
+            }
+          }
+          
+          print("Retrieved matching lost item: ${item?.name}");
+          print("Retrieved similarity score: $similarityScore");
+          
+          return {
+            'lost_item': item,  // Changed from 'item' to 'lost_item' to match expected key
+            'similarity_score': similarityScore
+          };
+        } else {
+          print("API returned success: false or missing data");
+          return {'lost_item': null, 'similarity_score': null};
+        }
+      } else if (response.statusCode == 404) {
+        print("API returned 404 - Not Found");
+        return {'lost_item': null, 'similarity_score': null};
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Token expired or invalid');
+      } else {
+        throw Exception('Failed to load matching lost item data with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print("Error fetching matching lost item with score: $e");
+      throw Exception('Failed to load matching lost item data: $e');
     }
   }
 } 

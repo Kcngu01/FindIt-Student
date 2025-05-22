@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../config/api_config.dart';
 import '../models/claim.dart';
 import '../services/claim_service.dart';
+import '../widgets/zoomable_image_viewer.dart';
 
 class ClaimDetailsScreen extends StatefulWidget {
   final int claimId;
@@ -132,39 +133,72 @@ class _ClaimDetailsScreenState extends State<ClaimDetailsScreen> {
           children: [
             // Item Image
             Center(
-              child: Container(
-                width: double.infinity,
-                height: 200,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                child: _claim!.image.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: FadeInImage.assetNetwork(
-                          placeholder: 'images/placeholder.png',
-                          image: ApiConfig.getItemImageUrl(_claim!.image, _claim!.type),
-                          fit: BoxFit.contain,
-                          imageErrorBuilder: (context, error, stackTrace) {
-                            print("Image error: $error");
-                            return Center(
-                              child: Icon(
-                                Icons.image_not_supported,
-                                size: 64,
-                                color: Colors.grey[400],
+              child: GestureDetector(
+                onTap: _claim!.image.isNotEmpty ? () {
+                  showZoomableImage(
+                    context, 
+                    ApiConfig.getItemImageUrl(_claim!.image, _claim!.type),
+                    _claim!.type
+                  );
+                } : null,
+                child: Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: _claim!.image.isNotEmpty
+                      ? Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: Center(
+                                child: FadeInImage.assetNetwork(
+                                  placeholder: 'images/placeholder.png',
+                                  image: ApiConfig.getItemImageUrl(_claim!.image, _claim!.type),
+                                  fit: BoxFit.contain,
+                                  alignment: Alignment.center,
+                                  imageErrorBuilder: (context, error, stackTrace) {
+                                    print("Image error: $error");
+                                    return Center(
+                                      child: Icon(
+                                        Icons.image_not_supported,
+                                        size: 64,
+                                        color: Colors.grey[400],
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
-                            );
-                          },
+                            ),
+                            // Add a small zoom icon indicator
+                            Positioned(
+                              right: 8,
+                              bottom: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Icon(
+                                  Icons.zoom_in,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Center(
+                          child: Icon(
+                            Icons.image,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
                         ),
-                      )
-                    : Center(
-                        child: Icon(
-                          Icons.image,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                      ),
+                ),
               ),
             ),
             

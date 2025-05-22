@@ -234,6 +234,9 @@ class _AddItemScreenState extends State<AddItemScreen> {
         throw Exception('User not logged in');
       }
       
+      // Use the compressed image file if available, otherwise use the original
+      final imageToUpload = _compressedImageFile ?? _imageFile;
+      
       await itemService.createItem(
         name: _nameController.text,
         description: _descriptionController.text,
@@ -242,7 +245,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
         colourId: _selectedColourId!,
         locationId: _selectedLocationId!,
         studentId: studentId,
-        imageFile: _imageFile,
+        imageFile: imageToUpload,
       );
       
       ScaffoldMessenger.of(context).showSnackBar(

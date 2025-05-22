@@ -1,6 +1,7 @@
 class ApiConfig {
   // Base server IP and port
   static const String serverIP = '192.168.0.6';
+  // static const String serverIP = '192.168.83.254';
   static const String serverPort = '8000';
   
   // Base URL components
@@ -36,6 +37,7 @@ class ApiConfig {
   static const String claimMatchEndpoint = '$baseApiUrl/items/claim/match';
   static const String potentialMatchesEndpoint = '$baseApiUrl/items/potential-matches';
   static const String studentClaimByPotentialMatchesEndpoint = '$baseApiUrl/items/potential-matches/claims';
+  static const String matchingLostItemEndpoint = '$baseApiUrl/items/found/matching-lost-item-with-score';
 
   // Characteristics endpoints
   static const String characteristicsBasePath = '$baseApiUrl/characteristics';
@@ -46,7 +48,7 @@ class ApiConfig {
   // Storage endpoints
   static const String foundItemsStoragePath = '$storageBaseUrl/found_items';
   static const String lostItemsStoragePath = '$storageBaseUrl/lost_items';
-  static const String recoveredItemsStoragePath = '$storageBaseUrl/recovered_items';
+  // static const String recoveredItemsStoragePath = '$storageBaseUrl/recovered_items';
 
   //Claim endpoints
   static const String showAllClaimsEndpoint = '$baseApiUrl/claims/student';
@@ -68,8 +70,8 @@ class ApiConfig {
         return '$foundItemsStoragePath/$image';
       case 'lost':
         return '$lostItemsStoragePath/$image';
-      case 'recovered':
-        return '$recoveredItemsStoragePath/$image';
+      // case 'recovered':
+      //   return '$recoveredItemsStoragePath/$image';
       default:
         return '';
     }

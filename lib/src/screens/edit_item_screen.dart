@@ -27,6 +27,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   
+  //image file picked
   File? _imageFile;
   File? _compressedImageFile;
   bool _isCompressing = false;
@@ -44,6 +45,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
   
   bool _isLoading = false;
   String? _error;
+  //current item waiting to be edited
   Item? _currentItem;
 
   @override
@@ -107,12 +109,47 @@ class _EditItemScreenState extends State<EditItemScreen> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      await _processSelectedImage(File(pickedFile.path));
-    }
+    // final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    // if (pickedFile != null) {
+    //   await _processSelectedImage(File(pickedFile.path));
+    // }
+
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Take a Photo'),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
+                  if (photo != null) {
+                    await _processSelectedImage(File(photo.path));
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+                  if (image != null) {
+                    await _processSelectedImage(File(image.path));
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
   
+  //compress the image
   Future<void> _processSelectedImage(File imageFile) async {
     setState(() {
       _imageFile = imageFile;
@@ -270,7 +307,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
                             borderRadius: BorderRadius.circular(8.0),
                             child: Image.file(
                               _imageFile!,
-                              fit: BoxFit.cover,
+                              fit: BoxFit.contain,
                             ),
                           )
                         : _currentItem?.image != null
@@ -278,7 +315,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
                                 borderRadius: BorderRadius.circular(8.0),
                                 child: Image.network(
                                   ApiConfig.getItemImageUrl(_currentItem!.image!, _currentItem!.type),
-                                  fit: BoxFit.cover,
+                                  fit: BoxFit.contain,
                                   errorBuilder: (context, error, stackTrace) {
                                     return Center(
                                       child: Icon(

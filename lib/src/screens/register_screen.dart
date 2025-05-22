@@ -17,13 +17,78 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  
+  // Password strength variables
+  double _passwordStrength = 0.0;
+  String _passwordStrengthText = 'Password is empty';
+  Color _passwordStrengthColor = Colors.grey;
+
+  @override
+  void initState() {
+    super.initState();
+    //  every time the text in the password field changes, this function will be called.
+    _passwordController.addListener(_checkPasswordStrength);
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _passwordController.removeListener(_checkPasswordStrength);
     _passwordController.dispose();
     super.dispose();
+  }
+  
+  // Check password strength and update UI accordingly
+  void _checkPasswordStrength() {
+    final password = _passwordController.text;
+    double strength = 0.0;
+    String strengthText = 'Very Weak';
+    Color strengthColor = Colors.red;
+    
+    if (password.isEmpty) {
+      strengthText = 'Password is empty';
+      strengthColor = Colors.grey;
+    } else {
+      // Base level just for having some characters
+      strength += 0.2;
+      
+      // Increase strength for longer passwords, up to 0.2 more for 12+ chars
+      if (password.length >= 8) strength += 0.2;
+      
+      // Check for uppercase letters
+      if (RegExp(r'[A-Z]').hasMatch(password)) strength += 0.15;
+      
+      // Check for lowercase letters
+      if (RegExp(r'[a-z]').hasMatch(password)) strength += 0.15;
+      
+      // Check for numbers
+      if (RegExp(r'[0-9]').hasMatch(password)) strength += 0.15;
+      
+      // Check for special characters
+      if (RegExp(r'[^a-zA-Z0-9]').hasMatch(password)) strength += 0.15;
+      
+      // Determine text and color based on strength
+      if (strength <= 0.2) {
+        strengthText = 'Very Weak';
+        strengthColor = Colors.red;
+      } else if (strength <= 0.4) {
+        strengthText = 'Weak';
+        strengthColor = Colors.orange;
+      } else if (strength <= 0.55) {
+        strengthText = 'Good';
+        strengthColor = Colors.yellow.shade700;
+      } else {
+        strengthText = 'Strong';
+        strengthColor = Colors.green;
+      }
+    }
+    
+    setState(() {
+      _passwordStrength = strength;
+      _passwordStrengthText = strengthText;
+      _passwordStrengthColor = strengthColor;
+    });
   }
 
   void _register() async {
@@ -132,7 +197,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       }
 
                       // Check if it's a valid email format and specifically a UNIMAS email
-                      final emailRegex = RegExp(r'^[a-zA-Z0-9._%+\-]+@siswa\.unimas\.my$');
+                      final emailRegex = RegExp(r'^[0-9]+@siswa\.unimas\.my$');
                       if (!emailRegex.hasMatch(value)) {
                         return 'Please enter a valid UNIMAS email (matric_no@siswa.unimas.my)';
                       }
@@ -159,6 +224,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           });
                         },
                       ),
+                      helperText: 'Password must have at least 8 characters, including uppercase, lowercase, number, and special character',
+                      helperMaxLines: 3,
+                      errorMaxLines: 4,
                     ),
                     obscureText: !_isPasswordVisible,
                     validator: (value) {
@@ -168,8 +236,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       if (value.length < 8) {
                         return 'Password must be at least 8 characters';
                       }
+                      
+                      // Check for uppercase letters
+                      if (!RegExp(r'[A-Z]').hasMatch(value)) {
+                        return 'Password must contain at least one uppercase letter';
+                      }
+                      
+                      // Check for lowercase letters
+                      if (!RegExp(r'[a-z]').hasMatch(value)) {
+                        return 'Password must contain at least one lowercase letter';
+                      }
+                      
+                      // Check for numbers
+                      if (!RegExp(r'[0-9]').hasMatch(value)) {
+                        return 'Password must contain at least one number';
+                      }
+                      
+                      // Check for special characters
+                      final specialCharPattern = RegExp(r'[^a-zA-Z0-9]');
+                      if (!specialCharPattern.hasMatch(value)) {
+                        return 'Password must contain at least one special character';
+                      }
+                      
                       return null;
                     },
+                  ),
+                  
+                  // Password strength indicator
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: LinearProgressIndicator(
+                          value: _passwordStrength,
+                          backgroundColor: Colors.grey[200],
+                          color: _passwordStrengthColor,
+                          minHeight: 8,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _passwordStrengthText,
+                        style: TextStyle(
+                          color: _passwordStrengthColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                   
                   const SizedBox(height: 20),

@@ -349,12 +349,12 @@ class _HomeScreenState extends State<HomeScreen> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Item Listing'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () => _logout(loginProvider),
-              ),
-            ],
+            // actions: [
+            //   IconButton(
+            //     icon: const Icon(Icons.logout),
+            //     onPressed: () => _logout(loginProvider),
+            //   ),
+            // ],
           ),
           body: Column(
             children: [
