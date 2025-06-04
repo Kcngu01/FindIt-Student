@@ -192,10 +192,23 @@ class _ClaimDetailsScreenState extends State<ClaimDetailsScreen> {
                           ],
                         )
                       : Center(
-                          child: Icon(
-                            Icons.image,
-                            size: 64,
-                            color: Colors.grey[400],
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.image,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No Image',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                 ),
@@ -385,6 +398,19 @@ class _ClaimDetailsScreenState extends State<ClaimDetailsScreen> {
             ),
             
             const Divider(),
+            
+            // Claim Location (only for found items)
+            if (_claim!.type == 'found' && _claim!.claimLocation != null && _claim!.claimLocation.isNotEmpty) ...[
+              _buildSectionHeader('Claim Location (Faculty)'),
+              Text(
+                _claim!.claimLocation,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[800],
+                ),
+              ),
+              const Divider(),
+            ],
             
             // Reporter Contact
             _buildSectionHeader('Reporter Contact'),

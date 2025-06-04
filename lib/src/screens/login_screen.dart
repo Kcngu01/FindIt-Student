@@ -99,6 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // This automatically closes all dialogs
                       Navigator.of(context).pushNamedAndRemoveUntil(
                         '/email_verification',
+                        // removes all previous routes from the stack. This effectively clears the entire navigation history, making the new route (/email_verification) the only one in the stack, preventing the user from going back to previous screens.
                         (route) => false, 
                       );
                       
@@ -119,7 +120,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 TextButton(
                   onPressed: () { 
-                    Navigator.pop(context);
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                        '/email_verification',
+                        (route) => false, 
+                    );
                   },
                   child: const Text('OK'),
                 ),

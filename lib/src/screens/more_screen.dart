@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 
 class MoreScreen extends StatelessWidget {
-  const MoreScreen({super.key});
+  final bool isInTabNavigator;
+
+  const MoreScreen({
+    super.key,
+    this.isInTabNavigator = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('More'),
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: !isInTabNavigator,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

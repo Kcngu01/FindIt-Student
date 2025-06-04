@@ -16,6 +16,7 @@ class Claim{
   final String studentJustification;
   final String createdAt;
   final String status;
+  final String claimLocation;
 
   Claim({
     required this.id,
@@ -34,6 +35,7 @@ class Claim{
     required this.studentJustification,
     required this.createdAt,
     required this.status,
+    this.claimLocation = '',
   });
 
   factory Claim.fromJson(Map<String, dynamic> json) {
@@ -51,6 +53,7 @@ class Claim{
       color: json['found_item']?['color']?['name'] ?? 'Unknown Color',
       location: json['found_item']?['location']?['name'] ?? 'Unknown Location',
       category: json['found_item']?['category']?['name'] ?? 'Unknown Category',
+      claimLocation: json['found_item']?['claim_location']?['name'] ?? '',
       
       // Admin information
       adminId: json['admin_id']?.toString() ?? '0',

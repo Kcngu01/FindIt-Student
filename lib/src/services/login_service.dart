@@ -83,17 +83,38 @@ class LoginService {
       })
     );
 
+    print("Registration response status: ${response.statusCode}");
+    print("Registration response body: ${response.body}");
+
     if(response.statusCode == 201){
       final responseData = jsonDecode(response.body);
+      
+      // Debug the response data
+      print("Registration response data: $responseData");
+      
       if (responseData.containsKey('token')) {
         await setToken(responseData['token']);
         // Set verification status to false for new registrations
         await setVerificationStatus(false);
         print("LoginService: Token saved, verification status set to false");
       }
-      return Student.fromJson(responseData);
-    }else{
-      throw Exception('Failed to register with status: ${response.statusCode}');
+      
+      try {
+        return Student.fromJson(responseData);
+      } catch (e) {
+        print("Error parsing Student from JSON: $e");
+        print("Response data structure: ${responseData.runtimeType}");
+        if (responseData is Map) {
+          print("Response keys: ${responseData.keys.toList()}");
+          if (responseData.containsKey('user')) {
+            print("User data: ${responseData['user']}");
+          }
+        }
+        rethrow;
+      }
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception('Failed to register: ${errorData['message'] ?? 'Unknown error'}');
     }
   }
 
@@ -288,6 +309,126 @@ class LoginService {
     } catch (e) {
       print("Error registering FCM token: $e");
       throw Exception('Failed to register FCM token: $e');
+    }
+  }
+
+  // Add method to change password
+  Future<bool> changePassword(String currentPassword, String newPassword) async {
+    final token = await this.token;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final response = await http.post(
+      Uri.parse(ApiConfig.changePasswordEndpoint),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'current_password': currentPassword,
+        'password': newPassword,
+        'password_confirmation': newPassword,
+      }),
+    );
+
+    // Parse the response body
+    Map<String, dynamic> responseData = {};
+    try {
+      if (response.body.isNotEmpty) {
+        responseData = jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('Error parsing response: $e');
+    }
+
+    if (response.statusCode == 200) {
+      return true;
+    } else if (response.statusCode == 401) {
+      // Current password is incorrect
+      final message = responseData['message'] ?? 'Current password is incorrect';
+      throw Exception(message);
+    } else if (response.statusCode == 422) {
+      // Validation error
+      if (responseData.containsKey('errors')) {
+        final errors = responseData['errors'] as Map<String, dynamic>;
+        
+        // Check for password-specific errors
+        if (errors.containsKey('password')) {
+          final passwordErrors = errors['password'];
+          if (passwordErrors is List && passwordErrors.isNotEmpty) {
+            throw Exception(passwordErrors.first);
+          }
+        }
+        
+        // If no specific password error was found, throw a generic message
+        throw Exception('Password validation failed: The password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.');
+      } else if (responseData.containsKey('message')) {
+        throw Exception(responseData['message']);
+      } else {
+        throw Exception('Password validation failed');
+      }
+    } else {
+      // Handle other error cases
+      final message = responseData['message'] ?? 'Failed to change password (Status: ${response.statusCode})';
+      throw Exception(message);
+    }
+  }
+  
+  // Add method to change username
+  Future<Student> changeUsername(String newUsername) async {
+    final token = await this.token;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final response = await http.post(
+      Uri.parse(ApiConfig.changeUsernameEndpoint),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'name': newUsername,
+      }),
+    );
+
+    // Parse the response body
+    Map<String, dynamic> responseData = {};
+    try {
+      if (response.body.isNotEmpty) {
+        responseData = jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('Error parsing response: $e');
+    }
+
+    if (response.statusCode == 200) {
+      return Student.fromJson(responseData);
+    } else if (response.statusCode == 422) {
+      // Validation error
+      if (responseData.containsKey('errors')) {
+        final errors = responseData['errors'] as Map<String, dynamic>;
+        
+        // Check for name-specific errors
+        if (errors.containsKey('name')) {
+          final nameErrors = errors['name'];
+          if (nameErrors is List && nameErrors.isNotEmpty) {
+            throw Exception(nameErrors.first);
+          }
+        }
+        
+        // If no specific name error was found, throw a generic message
+        throw Exception('Username validation failed');
+      } else if (responseData.containsKey('message')) {
+        throw Exception(responseData['message']);
+      } else {
+        throw Exception('Username validation failed');
+      }
+    } else {
+      // Handle other error cases
+      final message = responseData['message'] ?? 'Failed to change username (Status: ${response.statusCode})';
+      throw Exception(message);
     }
   }
 }

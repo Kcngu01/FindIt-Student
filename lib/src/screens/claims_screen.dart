@@ -208,10 +208,23 @@ class _ClaimsScreenState extends State<ClaimsScreen> {
                                       ),
                                     ),
                                     child: Center(
-                                      child: Icon(
-                                        Icons.image,
-                                        size: 64,
-                                        color: Colors.grey[400],
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.image,
+                                            size: 64,
+                                            color: Colors.grey[400],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'No Image',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),

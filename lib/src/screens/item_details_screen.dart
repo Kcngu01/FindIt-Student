@@ -52,6 +52,9 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
   String? _matchingReporterEmail;
   String? _similarityScore;
 
+ // Add a variable to track if the match is dismissed
+  bool _isMatchDismissed = false;
+
   @override
   void initState() {
     super.initState();
@@ -74,7 +77,31 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
     try {
       // First, load the base item information
       await Provider.of<ItemProvider>(context, listen: false).loadItemDetails(widget.itemId);
-      
+
+      // navigated from potential matches
+      // Check if we have a match ID and if it's dismissed
+      // if the match is dismissed, the user cannot claim the item
+      if (widget.matchId != null) {
+        try {
+          // Check if the match is dismissed by looking at the potential matches
+          if (widget.lostItemId != null) {
+            final matches = await _itemService.getPotentialMatches(widget.lostItemId!);
+            final match = matches.firstWhere(
+              (m) => m.id == widget.matchId,
+              orElse: () => throw Exception('Match not found'),
+            );
+            
+            if (mounted) {
+              setState(() {
+                _isMatchDismissed = match.matchStatus.toLowerCase() == 'dismissed';
+              });
+            }
+          }
+        } catch (e) {
+          print('Error checking match status: $e');
+        }
+      }
+
       // Then, load additional details if item was loaded successfully
       if (mounted) {
         await _loadAdditionalDetails();
@@ -487,10 +514,23 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                                   imageErrorBuilder: (context, error, stackTrace) {
                                     print("Image error: $error");
                                     return Center(
-                                      child: Icon(
-                                        Icons.image_not_supported,
-                                        size: 64,
-                                        color: Colors.grey[400],
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.image_not_supported,
+                                            size: 64,
+                                            color: Colors.grey[400],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Image Not Available',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     );
                                   },
@@ -518,10 +558,23 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                           ],
                         )
                       : Center(
-                          child: Icon(
-                            Icons.image,
-                            size: 64,
-                            color: Colors.grey[400],
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.image,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No Image',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                 ),
@@ -873,6 +926,15 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                   ),
                   const SizedBox(height: 16),
                   
+                  // Show claim location only for found items
+                  if (item.type == 'found' && item.claimLocationId != null) ...[
+                    _buildInfoSection(
+                      title: 'Claim Location (Faculty)',
+                      value: Provider.of<ItemProvider>(context).getFacultyName(item.claimLocationId),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  
                   _buildInfoSection(
                     title: 'Reporter Email',
                     value: _reporterEmail ?? 'Unknown',
@@ -892,7 +954,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                         SizedBox(
                           width: 200,
                           child: ElevatedButton(
-                            onPressed: (item.type == 'found' && !_hasClaimedItem && !_checkingClaimStatus) ? _claimItem : null,
+                            onPressed: (item.type == 'found' && !_hasClaimedItem && !_checkingClaimStatus && !_isMatchDismissed) ? _claimItem : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.green,
                               foregroundColor: Colors.white,
@@ -904,7 +966,11 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                             child: Padding(
                               padding: const EdgeInsets.all(12.0),
                               child: Text(
-                                _hasClaimedItem ? 'Already Claimed' : 'Claim Item',
+                                _hasClaimedItem 
+                                ?'Already Claimed'
+                                  :_isMatchDismissed  
+                                  ?'Claimed by Others/ You have pending claim'  
+                                    :'Claim Item',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -1031,10 +1097,23 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                               errorBuilder: (context, error, stackTrace) {
                                 print("Image error: $error");
                                 return Center(
-                                  child: Icon(
-                                    Icons.image_not_supported,
-                                    size: 64,
-                                    color: Colors.grey[400],
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.image_not_supported,
+                                        size: 64,
+                                        color: Colors.grey[400],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Image Not Available',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 );
                               },

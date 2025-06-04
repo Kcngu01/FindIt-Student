@@ -218,7 +218,12 @@ class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> with TickerPr
       // Add a slight delay before navigation to ensure the user sees the message
       await Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
-          Navigator.pushNamed(context, '/my_items');
+          // Clear the entire navigation stack and navigate to the home screen with the My Items tab selected
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/my_items',
+            (route) => false, // Remove all routes from the stack
+          );
         }
       });
     } catch (e) {
@@ -353,10 +358,23 @@ class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> with TickerPr
                           ],
                         )
                       : Center(
-                          child: Icon(
-                            Icons.image,
-                            size: 64,
-                            color: Colors.grey[400],
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.image,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No Image',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                 ),
@@ -461,6 +479,16 @@ class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> with TickerPr
                     value: _location?.name ?? 'Unknown',
                   ),
                   const SizedBox(height: 16),
+                  
+                  // Show claim location only for found items
+                  if (item.type == 'found' && item.claimLocationId != null) ...[
+                    _buildInfoSection(
+                      title: 'Claim Location (Faculty)',
+                      value: Provider.of<ItemProvider>(context).getFacultyName(item.claimLocationId),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  
                   _buildInfoSection(
                     title: 'Date Reported',
                     value: _formatDate(item.createdAt),
@@ -474,7 +502,7 @@ class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> with TickerPr
                       SizedBox(
                         width: 150,
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: item.canBeEdited ? () {
                             // Navigate to edit screen
                             Navigator.pushNamed(
                               context,
@@ -485,6 +513,14 @@ class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> with TickerPr
                               // Refresh item details when we return from edit screen
                               _loadItemDetails();
                             });
+                          } : () {
+                            // Show error message explaining why editing is disabled
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(item.restrictionReason ?? 'This item cannot be edited because it is involved in active matches or claims.'),
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.grey,
@@ -509,7 +545,15 @@ class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> with TickerPr
                       SizedBox(
                         width: 150,
                         child: ElevatedButton(
-                          onPressed: _deleteItem,
+                          onPressed: item.canBeDeleted ? _deleteItem : () {
+                            // Show error message explaining why deletion is disabled
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(item.restrictionReason ?? 'This item cannot be deleted because it is involved in active matches or claims.'),
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.grey,
                             foregroundColor: Colors.white,

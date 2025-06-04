@@ -109,7 +109,7 @@ class ImageCompressionInfo extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
-                      'Your image will be automatically compressed to under 5MB before upload to meet server requirements.',
+                      'Your image will be automatically compressed to under 2MB before upload to meet server requirements.',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade700,

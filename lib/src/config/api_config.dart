@@ -1,7 +1,7 @@
 class ApiConfig {
   // Base server IP and port
-  static const String serverIP = '192.168.0.6';
-  // static const String serverIP = '192.168.83.254';
+  static const String serverIP = '192.168.0.118';
+  // static const String serverIP = '192.168.34.254';
   static const String serverPort = '8000';
   
   // Base URL components
@@ -10,10 +10,12 @@ class ApiConfig {
   
   // API endpoints
   static const String apiBasePath = '/api';
+  // static const String baseApiUrl = 'https://findit.pw$apiBasePath';
   static const String baseApiUrl = '$baseServerUrl$apiBasePath';
   
   // Storage paths
   static const String storagePath = '/storage';
+  // static const String storageBaseUrl = 'https://findit.pw$storagePath';
   static const String storageBaseUrl = '$baseServerUrl$storagePath';
   
   // Auth endpoints
@@ -21,11 +23,13 @@ class ApiConfig {
   static const String registerEndpoint = '$baseApiUrl/register';
   static const String logoutEndpoint = '$baseApiUrl/logout';
   static const String profileEndpoint = '$baseApiUrl/profile';
-  static const String verifyEmailEndpoint = '$baseApiUrl/email/verify';
+  static const String verifyEmailEndpoint = '$baseApiUrl/email/verify';   //no longer used
   static const String verifyEmailCheckEndpoint = '$baseApiUrl/email/verify-check';
   static const String verifyEmailResendEndpoint = '$baseApiUrl/email/verification-notification';
   static const String forgotPasswordEndpoint = '$baseApiUrl/forgot-password';
   static const String resetPasswordEndpoint = '$baseApiUrl/reset-password';
+  static const String changePasswordEndpoint = '$baseApiUrl/change-password';
+  static const String changeUsernameEndpoint = '$baseApiUrl/change-username';
   
   // Items endpoints
   static const String itemsEndpoint = '$baseApiUrl/items';
@@ -38,12 +42,14 @@ class ApiConfig {
   static const String potentialMatchesEndpoint = '$baseApiUrl/items/potential-matches';
   static const String studentClaimByPotentialMatchesEndpoint = '$baseApiUrl/items/potential-matches/claims';
   static const String matchingLostItemEndpoint = '$baseApiUrl/items/found/matching-lost-item-with-score';
+  static const String itemRestrictionsEndpoint = '$baseApiUrl/items';  // Will be appended with /{id}/restrictions
 
   // Characteristics endpoints
   static const String characteristicsBasePath = '$baseApiUrl/characteristics';
   static const String categoriesEndpoint = '$characteristicsBasePath/categories';
   static const String coloursEndpoint = '$characteristicsBasePath/colours';
   static const String locationsEndpoint = '$characteristicsBasePath/locations';
+  static const String facultiesEndpoint = '$characteristicsBasePath/faculties';
   
   // Storage endpoints
   static const String foundItemsStoragePath = '$storageBaseUrl/found_items';

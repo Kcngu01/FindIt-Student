@@ -12,7 +12,12 @@ import '../config/api_config.dart';
 import '../providers/notification_provider.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool isInTabNavigator;
+
+  const HomeScreen({
+    super.key,
+    this.isInTabNavigator = false,
+  });
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -88,64 +93,64 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _onNavTap(int index) {
-    if (index == 2) {
-      // Navigate to the add item screen when the '+' button is pressed
-      Navigator.pushNamed(
-        context,
-        '/add_item',
-      ).then((needsRefresh) {
-        // Refresh the items list if the screen returns with true (item added)
-        if (needsRefresh == true) {
-          if (!mounted) return;
-          Provider.of<ItemProvider>(context, listen: false).loadItems();
-        }
-      });
-    } else if (index == 1) {
-      // Navigate to my items screen
-      final loginProvider = Provider.of<LoginProvider>(context, listen: false);
-      final studentId = loginProvider.student?.id;
+  // void _onNavTap(int index) {
+  //   if (index == 2) {
+  //     // Navigate to the add item screen when the '+' button is pressed
+  //     Navigator.pushNamed(
+  //       context,
+  //       '/add_item',
+  //     ).then((needsRefresh) {
+  //       // Refresh the items list if the screen returns with true (item added)
+  //       if (needsRefresh == true) {
+  //         if (!mounted) return;
+  //         Provider.of<ItemProvider>(context, listen: false).loadItems();
+  //       }
+  //     });
+  //   } else if (index == 1) {
+  //     // Navigate to my items screen
+  //     final loginProvider = Provider.of<LoginProvider>(context, listen: false);
+  //     final studentId = loginProvider.student?.id;
       
-      if (studentId != null) {
-        // Preload user items before navigating
-        Provider.of<ItemProvider>(context, listen: false).loadUserItems(studentId);
-      }
+  //     if (studentId != null) {
+  //       // Preload user items before navigating
+  //       Provider.of<ItemProvider>(context, listen: false).loadUserItems(studentId);
+  //     }
       
-      Navigator.pushNamed(
-        context,
-        '/my_items',
-      ).then((_) {
-        // Reset to home tab when returning
-        if (mounted) {
-          setState(() {
-            _selectedIndex = 0;
-          });
-        }
-      });
-    } else if (index == 3) {
-      // Navigate to notifications screen
-      Navigator.pushNamed(
-        context,
-        '/notifications',
-      ).then((_) {
-        // Reset to home tab when returning
-        if (mounted) {
-          setState(() {
-            _selectedIndex = 0;
-          });
-        }
-      });
-    } else if (index == 4) {
-      Navigator.pushNamed(
-        context,
-        '/more',
-      );
-    } else {
-      setState(() {
-        _selectedIndex = index;
-      });
-    }
-  }
+  //     Navigator.pushNamed(
+  //       context,
+  //       '/my_items',
+  //     ).then((_) {
+  //       // Reset to home tab when returning
+  //       if (mounted) {
+  //         setState(() {
+  //           _selectedIndex = 0;
+  //         });
+  //       }
+  //     });
+  //   } else if (index == 3) {
+  //     // Navigate to notifications screen
+  //     Navigator.pushNamed(
+  //       context,
+  //       '/notifications',
+  //     ).then((_) {
+  //       // Reset to home tab when returning
+  //       if (mounted) {
+  //         setState(() {
+  //           _selectedIndex = 0;
+  //         });
+  //       }
+  //     });
+  //   } else if (index == 4) {
+  //     Navigator.pushNamed(
+  //       context,
+  //       '/more',
+  //     );
+  //   } else {
+  //     setState(() {
+  //       _selectedIndex = index;
+  //     });
+  //   }
+  // }
 
   // Show the filter bottom sheet
   void _showFilterBottomSheet(BuildContext context) {
@@ -320,10 +325,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 onChanged: onChanged,
                 items: [
-                  // 'All' option
-                  const DropdownMenuItem<int>(
+                  // 'All' option with the title as the display text
+                  DropdownMenuItem<int>(
                     value: null,
-                    child: Text('All'),
+                    child: Text(title),
                   ),
                   // Dynamic items
                   ...items.map<DropdownMenuItem<int>>((characteristic) {
@@ -349,6 +354,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Item Listing'),
+            // Hide the back button when in tab navigator
+            automaticallyImplyLeading: !widget.isInTabNavigator,
             // actions: [
             //   IconButton(
             //     icon: const Icon(Icons.logout),
@@ -393,6 +400,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       )
                                     : null,
                               ),
+                              autocorrect: false,
+                              enableSuggestions: false, 
                               onSubmitted: (value) {
                                 itemProvider.updateSearchQuery(
                                   value.isNotEmpty ? value : null
@@ -564,21 +573,45 @@ class _HomeScreenState extends State<HomeScreen> {
                                                           errorBuilder:(context, error,stackTrace) {
                                                             print("image error:$error");  
                                                             return Center(
-                                                              child: Icon(
-                                                                Icons.image,
-                                                                size: 50,
-                                                                color: Colors
-                                                                    .grey[400],
+                                                              child: Column(
+                                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                                children: [
+                                                                  Icon(
+                                                                    Icons.image,
+                                                                    size: 40,
+                                                                    color: Colors.grey[400],
+                                                                  ),
+                                                                  const SizedBox(height: 4),
+                                                                  Text(
+                                                                    'No Image',
+                                                                    style: TextStyle(
+                                                                      fontSize: 10,
+                                                                      color: Colors.grey[600],
+                                                                    ),
+                                                                  ),
+                                                                ],
                                                               ),
                                                             );
                                                           },
                                                         )
                                                       : Center(
-                                                          child: Icon(
-                                                            Icons.image,
-                                                            size: 50,
-                                                            color: Colors
-                                                                .grey[400],
+                                                          child: Column(
+                                                            mainAxisAlignment: MainAxisAlignment.center,
+                                                            children: [
+                                                              Icon(
+                                                                Icons.image,
+                                                                size: 40,
+                                                                color: Colors.grey[400],
+                                                              ),
+                                                              const SizedBox(height: 4),
+                                                              Text(
+                                                                'No Image',
+                                                                style: TextStyle(
+                                                                  fontSize: 10,
+                                                                  color: Colors.grey[600],
+                                                                ),
+                                                              ),
+                                                            ],
                                                           ),
                                                         ),
                                                 ),
@@ -654,10 +687,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          bottomNavigationBar: CustomBottomNavBar(
-            currentIndex: _selectedIndex,
-            onTap: _onNavTap,
-          ),
+          // bottomNavigationBar: widget.isInTabNavigator ? null : CustomBottomNavBar(
+          //   currentIndex: _selectedIndex,
+          //   onTap: _onNavTap,
+          // ),
         );
       },
     );

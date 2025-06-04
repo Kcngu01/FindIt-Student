@@ -9,8 +9,12 @@ class Item {
   final int colorId;
   final int locationId;
   final int studentId;
+  final int? claimLocationId;
   final String createdAt;
   final String updatedAt;
+  bool canBeEdited;
+  bool canBeDeleted;
+  String? restrictionReason;
 
   Item({
     required this.id,
@@ -23,8 +27,12 @@ class Item {
     required this.colorId,
     required this.locationId,
     required this.studentId,
+    this.claimLocationId,
     required this.createdAt,
     required this.updatedAt,
+    this.canBeEdited = true,
+    this.canBeDeleted = true,
+    this.restrictionReason,
   });
 
   factory Item.fromJson(Map<String, dynamic> json) {
@@ -39,8 +47,11 @@ class Item {
       colorId: json['color_id'],
       locationId: json['location_id'],
       studentId: json['student_id'],
+      claimLocationId: json['claim_location_id'],
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
+      canBeEdited: true,
+      canBeDeleted: true,
     );
   }
 }

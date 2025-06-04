@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/login_provider.dart';
+import '../providers/item_provider.dart';
 import '../services/item_service.dart';
 import '../models/characteristic.dart';
+import '../models/faculty.dart';
 import '../services/image_service.dart';
 import '../widgets/image_compression_info.dart';
 
@@ -31,10 +33,12 @@ class _AddItemScreenState extends State<AddItemScreen> {
   late Future<List<Characteristic>> _categories;
   late Future<List<Characteristic>> _colours;
   late Future<List<Characteristic>> _locations;
+  late Future<List<Faculty>> _faculties;
   
   int? _selectedCategoryId;
   int? _selectedColourId;
   int? _selectedLocationId;
+  int? _selectedClaimLocationId;
   
   bool _isLoading = false;
   String? _error;
@@ -45,6 +49,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
     _categories = itemService.getCategories();
     _colours = itemService.getColours();
     _locations = itemService.getLocations();
+    _faculties = itemService.getFaculties();
   }
 
   @override
@@ -137,16 +142,22 @@ class _AddItemScreenState extends State<AddItemScreen> {
       final List<Characteristic> categories = await itemService.getCategories();
       final List<Characteristic> colours = await itemService.getColours();
       final List<Characteristic> locations = await itemService.getLocations();
+      final List<Faculty> faculties = await itemService.getFaculties();
 
       // Store the names of selected items before validation
       // These will be used to compare with the database entries
       String? selectedCategoryName;
       String? selectedColourName;
       String? selectedLocationName;
+      String? selectedClaimLocationName;
       
       // Get names from current UI dropdowns
+      // execute multiple asynchronous operations concurrently. It waits for the completion of a list of futures.
       await Future.wait([
+        // then method is used to handle the result of the future once it completes, allowing you to process the list of categories and find the matching one.
+        // list is the result of the _categories future once it completes.
         _categories.then((list) {
+          // firstWhere is a method in Dart that returns the first element in a list that satisfies a given condition. If no element matches, it throws an error unless an orElse function is provided, which returns a default value.
           final category = list.firstWhere(
             (c) => c.id == _selectedCategoryId,
             orElse: () => Characteristic(id: -1, name: ''),
@@ -167,6 +178,14 @@ class _AddItemScreenState extends State<AddItemScreen> {
           );
           selectedLocationName = location.name;
         }),
+        if (_selectedType == 'found' && _selectedClaimLocationId != null)
+          _faculties.then((list) {
+            final faculty = list.firstWhere(
+              (f) => f.id == _selectedClaimLocationId,
+              orElse: () => Faculty(id: -1, name: ''),
+            );
+            selectedClaimLocationName = faculty.name;
+          }),
       ]);
 
       // Check if IDs exist in the database
@@ -182,22 +201,35 @@ class _AddItemScreenState extends State<AddItemScreen> {
         (l) => l.id == _selectedLocationId,
         orElse: () => Characteristic(id: -1, name: ''),
       );
+      
+      Faculty? dbClaimLocation;
+      if (_selectedType == 'found' && _selectedClaimLocationId != null) {
+        dbClaimLocation = faculties.firstWhere(
+          (f) => f.id == _selectedClaimLocationId,
+          orElse: () => Faculty(id: -1, name: ''),
+        );
+      }
 
       // Check if IDs exist and if names match
       final categoryValid = dbCategory.id != -1 && dbCategory.name == selectedCategoryName;
       final colourValid = dbColour.id != -1 && dbColour.name == selectedColourName;
       final locationValid = dbLocation.id != -1 && dbLocation.name == selectedLocationName;
+      final claimLocationValid = _selectedType != 'found' || _selectedClaimLocationId == null || 
+                              (dbClaimLocation != null && dbClaimLocation.id != -1 && 
+                               dbClaimLocation.name == selectedClaimLocationName);
 
-      if (!categoryValid || !colourValid || !locationValid) {
+      if (!categoryValid || !colourValid || !locationValid || !claimLocationValid) {
         // If any selection is invalid, refresh the data and throw error
         setState(() {
           _categories = itemService.getCategories();
           _colours = itemService.getColours();
           _locations = itemService.getLocations();
+          _faculties = itemService.getFaculties();
           // Clear invalid selections
           if (!categoryValid) _selectedCategoryId = null;
           if (!colourValid) _selectedColourId = null;
           if (!locationValid) _selectedLocationId = null;
+          if (!claimLocationValid) _selectedClaimLocationId = null;
         });
         throw Exception('Some selected options are no longer valid or have been modified. Please reselect from the updated list.');
       }
@@ -214,6 +246,21 @@ class _AddItemScreenState extends State<AddItemScreen> {
     if (_selectedCategoryId == null || _selectedColourId == null || _selectedLocationId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select all required fields')),
+      );
+      return;
+    }
+    
+    if (_selectedType == 'found' && _selectedClaimLocationId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a claim location for found items')),
+      );
+      return;
+    }
+    
+    // Add validation to ensure image is provided for found items
+    if (_selectedType == 'found' && _imageFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add an image for found items')),
       );
       return;
     }
@@ -245,6 +292,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
         colourId: _selectedColourId!,
         locationId: _selectedLocationId!,
         studentId: studentId,
+        claimLocationId: _selectedType == 'found' ? _selectedClaimLocationId : null,
         imageFile: imageToUpload,
       );
       
@@ -502,6 +550,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
                             );
                           }
                           return DropdownButtonFormField<int>(
+                            isExpanded: true,
+                            menuMaxHeight: 300,
                             decoration: InputDecoration(
                               labelText: 'Category',
                               border: OutlineInputBorder(
@@ -518,7 +568,9 @@ class _AddItemScreenState extends State<AddItemScreen> {
                             items: snapshot.data!.map((category) {
                               return DropdownMenuItem<int>(
                                 value: category.id,
-                                child: Text(category.name),
+                                child: Text(
+                                  category.name,
+                                ),
                               );
                             }).toList(),
                           );
@@ -543,6 +595,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
                             );
                           }
                           return DropdownButtonFormField<int>(
+                            isExpanded: true,
+                            menuMaxHeight: 300,
                             decoration: InputDecoration(
                               labelText: 'Colour',
                               border: OutlineInputBorder(
@@ -559,7 +613,9 @@ class _AddItemScreenState extends State<AddItemScreen> {
                             items: snapshot.data!.map((colour) {
                               return DropdownMenuItem<int>(
                                 value: colour.id,
-                                child: Text(colour.name),
+                                child: Text(
+                                  colour.name,
+                                ),
                               );
                             }).toList(),
                           );
@@ -584,12 +640,15 @@ class _AddItemScreenState extends State<AddItemScreen> {
                             );
                           }
                           return DropdownButtonFormField<int>(
+                            isExpanded: true,
+                            menuMaxHeight: 300,
                             decoration: InputDecoration(
                               labelText: 'Location',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8.0),
                               ),
                             ),
+                            // Value in this context refers to the currently selected value of the DropdownButtonFormField
                             value: _selectedLocationId,
                             hint: const Text('Select Location'),
                             onChanged: (value) {
@@ -597,15 +656,67 @@ class _AddItemScreenState extends State<AddItemScreen> {
                                 _selectedLocationId = value;
                               });
                             },
+
+                            // snapshot.data at here is a list of Characteristic objects representing locations. This is because the FutureBuilder is using _locations, which is a Future<List<Characteristic>> obtained from itemService.getLocations() 
                             items: snapshot.data!.map((location) {
                               return DropdownMenuItem<int>(
                                 value: location.id,
-                                child: Text(location.name),
+                                child: Text(
+                                  location.name,
+                                ),
                               );
                             }).toList(),
+                            // use toList() because map() returns an Iterable, and DropdownButtonFormField requires a List<DropdownMenuItem<int>> for its items parameter. toList() converts the Iterable to a List
                           );
                         },
                       ),
+                      
+                      // Claim Location Dropdown (only for 'found' items)
+                      if (_selectedType == 'found') ...[
+                        const SizedBox(height: 16),
+                        FutureBuilder<List<Faculty>>(
+                          future: _faculties,
+                          builder: (context, snapshot) {
+                            if (snapshot.hasError) {
+                              return Text('Error: ${snapshot.error}');
+                            }
+                            if (!snapshot.hasData) {
+                              return const Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              );
+                            }
+                            return DropdownButtonFormField<int>(
+                              isExpanded: true,
+                              menuMaxHeight: 300,
+                              decoration: InputDecoration(
+                                labelText: 'Claim Location (Faculty)',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                              ),
+                              value: _selectedClaimLocationId,
+                              hint: const Text('Select Claim Location'),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedClaimLocationId = value;
+                                });
+                              },
+                              items: snapshot.data!.map((faculty) {
+                                return DropdownMenuItem<int>(
+                                  value: faculty.id,
+                                  child: Text(
+                                    faculty.name,
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
+                      ],
                       const SizedBox(height: 24),
                       
                       // Submit Button

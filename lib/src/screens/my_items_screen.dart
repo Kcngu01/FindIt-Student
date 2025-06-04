@@ -8,15 +8,25 @@ import '../services/item_service.dart';
 import '../config/api_config.dart';
 
 class MyItemsScreen extends StatefulWidget {
-  const MyItemsScreen({super.key});
+  final bool isInTabNavigator;
+
+  const MyItemsScreen({
+    super.key,
+    this.isInTabNavigator = false,
+  });
 
   @override
   _MyItemsScreenState createState() => _MyItemsScreenState();
 }
 
-class _MyItemsScreenState extends State<MyItemsScreen> {
+class _MyItemsScreenState extends State<MyItemsScreen> with AutomaticKeepAliveClientMixin {
   final ItemService _itemService = ItemService();
   String _filterType = 'lost'; // Default filter type: 'lost' or 'found'
+  bool _isFirstLoad = true;
+  bool _isVisible = false;
+
+  @override
+  bool get wantKeepAlive => true; // Keep the state when switching tabs
 
   @override
   void initState() {
@@ -25,9 +35,31 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
     // Use post-frame callback to avoid build-time state changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        _isFirstLoad = false;
         _loadMyItems();
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Check if this screen is currently visible
+    final bool isCurrentlyVisible = ModalRoute.of(context)?.isCurrent ?? false;
+    
+    // If the screen becomes visible and wasn't visible before, reload data
+    if (isCurrentlyVisible && !_isVisible && !_isFirstLoad) {
+      _isVisible = true;
+      _loadMyItems();
+    } 
+    
+    // else if block runs when the user navigates away from this screen to another screen
+    // This allows the component to track when the user has left the screen, updating the internal visibility state accordingly.
+    // If the screen is no longer visible (!isCurrentlyVisible) but was visible before (_isVisible), it updates the visibility state to false
+    else if (!isCurrentlyVisible && _isVisible) {
+      _isVisible = false;
+    }
   }
 
   // Load items belonging to the current user using ItemProvider
@@ -65,13 +97,16 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required by AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Item'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: widget.isInTabNavigator 
+            ? null 
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
       ),
       body: Column(
         children: [
@@ -228,7 +263,20 @@ class _MyItemsScreenState extends State<MyItemsScreen> {
                                     : null,
                               ),
                               child: _getItemImageUrl(item) == null
-                                  ? const Icon(Icons.image, size: 40, color: Colors.grey)
+                                  ? Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.image, size: 40, color: Colors.grey),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'No Image',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    )
                                   : null,
                             ),
                             

@@ -6,6 +6,7 @@ import '../models/item.dart';
 import '../models/potential_match.dart';
 import '../models/claim.dart';
 import '../models/claim_by_match.dart';
+import '../models/faculty.dart';
 import 'login_service.dart';
 import '../models/characteristic.dart';
 import '../config/api_config.dart';
@@ -16,6 +17,7 @@ class ItemService {
   static const String baseUrlCategories = ApiConfig.categoriesEndpoint;
   static const String baseUrlColours = ApiConfig.coloursEndpoint;
   static const String baseUrlLocations = ApiConfig.locationsEndpoint;
+  static const String baseUrlFaculties = ApiConfig.facultiesEndpoint;
 
   final LoginService _loginService = LoginService();
 
@@ -240,6 +242,7 @@ class ItemService {
     required int colourId,
     required int locationId,
     required int studentId,
+    int? claimLocationId,
     File? imageFile,
   }) async {
     final token = await _loginService.token;
@@ -282,6 +285,11 @@ class ItemService {
         'student_id': studentId.toString(),
       });
       
+      // Add claim location if provided and type is found
+      if (type == 'found' && claimLocationId != null) {
+        request.fields['claim_location_id'] = claimLocationId.toString();
+      }
+      
       // Add description if provided
       if (description != null && description.isNotEmpty) {
         request.fields['description'] = description;
@@ -308,7 +316,7 @@ class ItemService {
       }
       
       // Send the request
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 45));
       final response = await http.Response.fromStream(streamedResponse);
       
       print("Create Item API response: ${response.statusCode}, ${response.body}");
@@ -349,6 +357,7 @@ class ItemService {
     int? categoryId,
     int? locationId,
     int? colorId,
+    int? claimLocationId,
     String? type,
     File? imageFile,
   }) async {
@@ -357,6 +366,7 @@ class ItemService {
     print(categoryId);
     print(locationId);
     print(colorId);
+    print(claimLocationId);
     print(imageFile);
     final token = await _loginService.token;
     if (token == null) {
@@ -410,6 +420,11 @@ class ItemService {
       
       if (colorId != null) {
         request.fields['color_id'] = colorId.toString();
+      }
+      
+      // Add claim location if provided and type is 'found'
+      if (type == 'found' && claimLocationId != null) {
+        request.fields['claim_location_id'] = claimLocationId.toString();
       }
       
       // Add image if provided
@@ -516,7 +531,22 @@ class ItemService {
         final Map<String, dynamic> data = jsonDecode(response.body);
         if (data['success'] == true && data.containsKey('item')) {
           print('Item: ${data['item']}  ');
-          return Item.fromJson(data['item']);
+          Item item = Item.fromJson(data['item']);
+          
+          // Check item restrictions
+          try {
+            final restrictions = await checkItemRestrictions(id);
+            item.canBeEdited = restrictions['canBeEdited'];
+            item.canBeDeleted = restrictions['canBeDeleted'];
+            item.restrictionReason = restrictions['restrictionReason'];
+          } catch (e) {
+            print("Error checking restrictions: $e");
+            // If we can't check restrictions, default to true
+            item.canBeEdited = true;
+            item.canBeDeleted = true;
+          }
+          
+          return item;
         } else {
           throw Exception('Invalid response format');
         }
@@ -935,6 +965,86 @@ class ItemService {
     } catch (e) {
       print("Error fetching matching lost item with score: $e");
       throw Exception('Failed to load matching lost item data: $e');
+    }
+  }
+
+  // Add this method to check if an item can be edited or deleted based on matches and claims
+  Future<Map<String, dynamic>> checkItemRestrictions(int itemId) async {
+    final token = await _loginService.token;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.itemRestrictionsEndpoint}/$itemId/restrictions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 5));
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return {
+          'canBeEdited': data['can_be_edited'] ?? true,
+          'canBeDeleted': data['can_be_deleted'] ?? true,
+          'restrictionReason': data['restriction_reason'],
+        };
+      } else {
+        // Default to true if unable to check
+        return {
+          'canBeEdited': true,
+          'canBeDeleted': true,
+          'restrictionReason': null,
+        };
+      }
+    } catch (e) {
+      print("Error checking item restrictions: $e");
+      // Default to true if unable to check
+      return {
+        'canBeEdited': true,
+        'canBeDeleted': true,
+        'restrictionReason': null,
+      };
+    }
+  }
+
+  Future<List<Faculty>> getFaculties() async {
+    final token = await _loginService.token;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse(baseUrlFaculties),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        }
+      ).timeout(const Duration(seconds: 10));
+
+      print("Faculties API response: ${response.statusCode}, ${response.body}");
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data['success'] == true && data.containsKey('faculties')) {
+          List<Faculty> faculties = (data['faculties'] as List)
+              .map((facultyJson) => Faculty.fromJson(facultyJson))
+              .toList();
+          return faculties;
+        } else {
+          throw Exception('Invalid response format');
+        }
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorized: Token expired or invalid');
+      } else {
+        throw Exception('Failed to load faculties with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print("Error fetching faculties: $e");
+      throw Exception('Failed to fetch faculties: $e');
     }
   }
 } 

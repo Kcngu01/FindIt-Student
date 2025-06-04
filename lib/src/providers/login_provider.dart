@@ -179,6 +179,42 @@ class LoginProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  // Add method to change password
+  Future<bool> changePassword(String currentPassword, String newPassword) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    
+    try {
+      final result = await _loginService.changePassword(currentPassword, newPassword);
+      return result;
+    } catch (e) {
+      _error = e.toString();
+      throw Exception(_error);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+  
+  // Add method to change username
+  Future<void> changeUsername(String newUsername) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    
+    try {
+      final updatedStudent = await _loginService.changeUsername(newUsername);
+      _student = updatedStudent;
+    } catch (e) {
+      _error = e.toString();
+      throw Exception(_error);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }
 // import 'package:flutter/material.dart';
 // import '../models/Student.dart';

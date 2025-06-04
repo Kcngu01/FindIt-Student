@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/item_provider.dart';
 import '../services/item_service.dart';
 import '../models/characteristic.dart';
+import '../models/faculty.dart';
 import '../models/item.dart';
 import '../config/api_config.dart';
 import '../services/image_service.dart';
@@ -38,10 +39,12 @@ class _EditItemScreenState extends State<EditItemScreen> {
   late Future<List<Characteristic>> _categories;
   late Future<List<Characteristic>> _colours;
   late Future<List<Characteristic>> _locations;
+  late Future<List<Faculty>> _faculties;
   
   int? _selectedCategoryId;
   int? _selectedColourId;
   int? _selectedLocationId;
+  int? _selectedClaimLocationId;
   
   bool _isLoading = false;
   String? _error;
@@ -54,6 +57,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
     _categories = _itemService.getCategories();
     _colours = _itemService.getColours();
     _locations = _itemService.getLocations();
+    _faculties = _itemService.getFaculties();
     
     // Load current item details
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -98,6 +102,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
       _selectedCategoryId = item.categoryId;
       _selectedColourId = item.colorId;
       _selectedLocationId = item.locationId;
+      _selectedClaimLocationId = item.claimLocationId;
     });
   }
 
@@ -212,6 +217,14 @@ class _EditItemScreenState extends State<EditItemScreen> {
       return;
     }
     
+    // Validate claim location for found items
+    if (_currentItem?.type == 'found' && _selectedClaimLocationId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a claim location')),
+      );
+      return;
+    }
+    
     setState(() {
       _isLoading = true;
       _error = null;
@@ -225,7 +238,9 @@ class _EditItemScreenState extends State<EditItemScreen> {
       print(_selectedCategoryId);
       print(_selectedColourId);
       print(_selectedLocationId);
+      print(_selectedClaimLocationId);
       print(_imageFile);
+      print(_compressedImageFile);
       await itemProvider.updateItem(
         itemId: widget.itemId,
         name: _nameController.text,
@@ -233,7 +248,8 @@ class _EditItemScreenState extends State<EditItemScreen> {
         categoryId: _selectedCategoryId,
         colorId: _selectedColourId,
         locationId: _selectedLocationId,
-        imageFile: _imageFile,
+        claimLocationId: _currentItem?.type == 'found' ? _selectedClaimLocationId : null,
+        imageFile: _compressedImageFile ?? _imageFile,
         type: _currentItem?.type,
       );
       
@@ -438,6 +454,8 @@ class _EditItemScreenState extends State<EditItemScreen> {
                   return const Text('No categories available');
                 } else {
                   return DropdownButtonFormField<int>(
+                    isExpanded: true,
+                    menuMaxHeight: 300,
                     decoration: const InputDecoration(
                       labelText: 'Category',
                       border: OutlineInputBorder(),
@@ -446,7 +464,9 @@ class _EditItemScreenState extends State<EditItemScreen> {
                     items: snapshot.data!.map((category) {
                       return DropdownMenuItem<int>(
                         value: category.id,
-                        child: Text(category.name),
+                        child: Text(
+                          category.name,
+                        ),
                       );
                     }).toList(),
                     onChanged: (value) {
@@ -473,6 +493,8 @@ class _EditItemScreenState extends State<EditItemScreen> {
                   return const Text('No colors available');
                 } else {
                   return DropdownButtonFormField<int>(
+                    isExpanded: true,
+                    menuMaxHeight: 300,
                     decoration: const InputDecoration(
                       labelText: 'Color',
                       border: OutlineInputBorder(),
@@ -481,7 +503,9 @@ class _EditItemScreenState extends State<EditItemScreen> {
                     items: snapshot.data!.map((color) {
                       return DropdownMenuItem<int>(
                         value: color.id,
-                        child: Text(color.name),
+                        child: Text(
+                          color.name,
+                        ),
                       );
                     }).toList(),
                     onChanged: (value) {
@@ -508,6 +532,8 @@ class _EditItemScreenState extends State<EditItemScreen> {
                   return const Text('No locations available');
                 } else {
                   return DropdownButtonFormField<int>(
+                    isExpanded: true,
+                    menuMaxHeight: 300,
                     decoration: const InputDecoration(
                       labelText: 'Location',
                       border: OutlineInputBorder(),
@@ -516,7 +542,9 @@ class _EditItemScreenState extends State<EditItemScreen> {
                     items: snapshot.data!.map((location) {
                       return DropdownMenuItem<int>(
                         value: location.id,
-                        child: Text(location.name),
+                        child: Text(
+                          location.name,
+                        ),
                       );
                     }).toList(),
                     onChanged: (value) {
@@ -528,6 +556,46 @@ class _EditItemScreenState extends State<EditItemScreen> {
                 }
               },
             ),
+            
+            // Claim Location dropdown (only visible for found items)
+            if (_currentItem?.type == 'found') ...[
+              const SizedBox(height: 16),
+              FutureBuilder<List<Faculty>>(
+                future: _faculties,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const CircularProgressIndicator();
+                  } else if (snapshot.hasError) {
+                    return Text('Error: ${snapshot.error}');
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Text('No claim locations available');
+                  } else {
+                    return DropdownButtonFormField<int>(
+                      isExpanded: true,
+                      menuMaxHeight: 300,
+                      decoration: const InputDecoration(
+                        labelText: 'Claim Location (Faculty)',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: _selectedClaimLocationId,
+                      items: snapshot.data!.map((faculty) {
+                        return DropdownMenuItem<int>(
+                          value: faculty.id,
+                          child: Text(
+                            faculty.name,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedClaimLocationId = value;
+                        });
+                      },
+                    );
+                  }
+                },
+              ),
+            ],
             
             const SizedBox(height: 24),
             

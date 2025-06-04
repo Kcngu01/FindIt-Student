@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/login_provider.dart';
+import 'change_password_screen.dart';
+import 'change_username_screen.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -11,6 +13,30 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   bool _isLoading = false;
+
+  Future<void> _showLogoutConfirmation(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed == true) {
+      _logout(context);
+    }
+  }
 
   Future<void> _logout(BuildContext context) async {
     setState(() {
@@ -142,13 +168,27 @@ class _AccountScreenState extends State<AccountScreen> {
                   child: Column(
                     children: [
                       ListTile(
+                        leading: const Icon(Icons.person_outline),
+                        title: const Text('Change Username'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const ChangeUsernameScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
                         leading: const Icon(Icons.lock_outline),
                         title: const Text('Change Password'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // TODO: Implement change password
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Change password not implemented yet')),
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const ChangePasswordScreen(),
+                            ),
                           );
                         },
                       ),
@@ -167,7 +207,7 @@ class _AccountScreenState extends State<AccountScreen> {
                             : const Icon(Icons.chevron_right),
                         onTap: _isLoading
                             ? null
-                            : () => _logout(context),
+                            : () => _showLogoutConfirmation(context),
                       ),
                     ],
                   ),

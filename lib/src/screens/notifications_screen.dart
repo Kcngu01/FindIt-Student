@@ -6,7 +6,12 @@ import '../widgets/custom_bottom_nav.dart';
 import '../models/notification.dart';
 
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key});
+  final bool isInTabNavigator;
+
+  const NotificationsScreen({
+    super.key,
+    this.isInTabNavigator = false,
+  });
 
   @override
   _NotificationsScreenState createState() => _NotificationsScreenState();
@@ -31,6 +36,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications'),
+        // Only show back button if not in tab navigator
+        leading: widget.isInTabNavigator 
+            ? null 
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
         actions: [
           Consumer<NotificationProvider>(
             builder: (context, provider, child) {
@@ -125,23 +137,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           );
         },
       ),
-      bottomNavigationBar: CustomBottomNavBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          if (index != _selectedIndex) {
-            // Navigate to other screens based on index
-            if (index == 0) {
-              Navigator.pushReplacementNamed(context, '/home');
-            } else if (index == 1) {
-              Navigator.pushReplacementNamed(context, '/my_items');
-            } else if (index == 2) {
-              Navigator.pushNamed(context, '/add_item');
-            } else if (index == 4) {
-              Navigator.pushReplacementNamed(context, '/more');
-            }
-          }
-        },
-      ),
+      // Only show bottom navigation bar if not in tab navigator
+      // bottomNavigationBar: widget.isInTabNavigator ? null : CustomBottomNavBar(
+      //   currentIndex: _selectedIndex,
+      //   onTap: (index) {
+      //     if (index != _selectedIndex) {
+      //       // Navigate to other screens based on index
+      //       if (index == 0) {
+      //         Navigator.pushReplacementNamed(context, '/home');
+      //       } else if (index == 1) {
+      //         Navigator.pushReplacementNamed(context, '/my_items');
+      //       } else if (index == 2) {
+      //         Navigator.pushNamed(context, '/add_item');
+      //       } else if (index == 4) {
+      //         Navigator.pushReplacementNamed(context, '/more');
+      //       }
+      //     }
+      //   },
+      // ),
     );
   }
   

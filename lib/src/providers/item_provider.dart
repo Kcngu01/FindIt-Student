@@ -6,6 +6,7 @@ import '../models/potential_match.dart';
 import '../models/characteristic.dart';
 import '../models/claim.dart';
 import '../models/claim_by_match.dart';
+import '../models/faculty.dart';
 import '../services/item_service.dart';
 import '../services/claim_service.dart';
 
@@ -45,6 +46,7 @@ class ItemProvider extends ChangeNotifier {
   List<Characteristic> _categories = [];
   List<Characteristic> _colors = [];
   List<Characteristic> _locations = [];
+  List<Faculty> _faculties = [];
   bool _loadingCharacteristics = false;
   
   // Claims
@@ -79,10 +81,11 @@ class ItemProvider extends ChangeNotifier {
   bool get isLoadingPotentialMatches => _isLoadingPotentialMatches;
   String? get potentialMatchesError => _potentialMatchesError;
   
-  // Getters for Characteristics
+  // Getters for characteristics
   List<Characteristic> get categories => _categories;
   List<Characteristic> get colors => _colors;
   List<Characteristic> get locations => _locations;
+  List<Faculty> get faculties => _faculties;
   bool get loadingCharacteristics => _loadingCharacteristics;
   
   // Getters for Claims
@@ -193,7 +196,7 @@ class ItemProvider extends ChangeNotifier {
   
   // Load filter characteristics
   Future<void> loadFilterCharacteristics() async {
-    if (_categories.isNotEmpty && _colors.isNotEmpty && _locations.isNotEmpty) {
+    if (_categories.isNotEmpty && _colors.isNotEmpty && _locations.isNotEmpty && _faculties.isNotEmpty) {
       return; // Already loaded
     }
     
@@ -205,11 +208,13 @@ class ItemProvider extends ChangeNotifier {
         _itemService.getCategories(),
         _itemService.getColours(),
         _itemService.getLocations(),
+        _itemService.getFaculties(),
       ]);
       
-      _categories = results[0];
-      _colors = results[1];
-      _locations = results[2];
+      _categories = results[0] as List<Characteristic>;
+      _colors = results[1] as List<Characteristic>;
+      _locations = results[2] as List<Characteristic>;
+      _faculties = results[3] as List<Faculty>;
       _loadingCharacteristics = false;
       notifyListeners();
     } catch (e) {
@@ -225,6 +230,7 @@ class ItemProvider extends ChangeNotifier {
   Future<void> loadUserItems(int studentId, {String? type = 'lost'}) async {
     _isLoadingUserItems = true;
     _userItemsError = null;
+    _userItems = []; // Clear previous items first
     notifyListeners();
     
     try {
@@ -269,6 +275,7 @@ class ItemProvider extends ChangeNotifier {
     int? categoryId,
     int? colorId,
     int? locationId,
+    int? claimLocationId,
     File? imageFile,
     String? type,
   }) async {
@@ -282,6 +289,7 @@ class ItemProvider extends ChangeNotifier {
       print(categoryId);
       print(colorId);
       print(locationId);
+      print(claimLocationId);
       print(imageFile);
       _statusMessage = await _itemService.updateItem(
         id: itemId,
@@ -290,6 +298,7 @@ class ItemProvider extends ChangeNotifier {
         categoryId: categoryId,
         colorId: colorId,
         locationId: locationId,
+        claimLocationId: claimLocationId,
         imageFile: imageFile,
         type: type,
       );
@@ -361,6 +370,15 @@ class ItemProvider extends ChangeNotifier {
       orElse: () => Characteristic(id: id, name: 'Unknown')
     );
     return location.name;
+  }
+  
+  String getFacultyName(int? id) {
+    if (id == null) return 'Not specified';
+    final faculty = _faculties.firstWhere(
+      (f) => f.id == id, 
+      orElse: () => Faculty(id: id, name: 'Unknown')
+    );
+    return faculty.name;
   }
   
   // Methods for Potential Matches

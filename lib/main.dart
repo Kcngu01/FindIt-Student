@@ -19,6 +19,7 @@ import 'src/screens/claim_details_screen.dart';
 import 'src/screens/account_screen.dart';
 import 'src/screens/more_screen.dart';
 import 'src/screens/notifications_screen.dart';
+import 'src/screens/main_navigation_screen.dart';
 import 'src/models/item.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'src/services/firebase_messaging_service.dart';
@@ -142,15 +143,15 @@ class _MyAppState extends State<MyApp> {
           '/splash': (context) => SplashScreen(launchedFromNotification: launchedFromNotification),
           '/register': (context) => const RegisterScreen(),
           '/login': (context) => const LoginScreen(),
-          '/home': (context) => const HomeScreen(),
+          '/home': (context) => const MainNavigationScreen(initialIndex: 0),
           '/add_item': (context) => const AddItemScreen(),
           '/email_verification': (context) => const EmailVerificationScreen(),
           '/forgot_password': (context) => const ForgotPasswordScreen(),
-          '/my_items': (context) => const MyItemsScreen(),
+          '/my_items': (context) => const MainNavigationScreen(initialIndex: 1),
           '/claims': (context) => const ClaimsScreen(),
           '/account': (context) => const AccountScreen(),
-          '/more': (context) => const MoreScreen(),
-          '/notifications': (context) => const NotificationsScreen(),
+          '/more': (context) => const MainNavigationScreen(initialIndex: 4),
+          '/notifications': (context) => const MainNavigationScreen(initialIndex: 3),
         },
         onGenerateRoute: (settings) {
           if (settings.name == '/item_details') {

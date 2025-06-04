@@ -1,3 +1,4 @@
+//similar to item model, and have one more different attributes 'similarityScore'
 class PotentialMatch {
   final int id;
   final int foundItemId;
