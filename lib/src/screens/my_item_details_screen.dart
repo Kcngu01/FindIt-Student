@@ -236,8 +236,9 @@ class _MyItemDetailsScreenState extends State<MyItemDetailsScreen> with TickerPr
   
   String _formatDate(String dateString) {
     try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('yyyy-MM-dd HH:mm:ss').format(date);
+      final utcdate = DateTime.parse(dateString);
+      final utc8Date = utcdate.add(const Duration(hours: 8));
+      return DateFormat('yyyy-MM-dd HH:mm:ss').format(utc8Date);
     } catch (e) {
       return dateString;
     }

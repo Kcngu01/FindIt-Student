@@ -70,8 +70,11 @@ class _ClaimsScreenState extends State<ClaimsScreen> {
 
   String _formatDate(String dateString) {
     try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('yyyy-MM-dd HH:mm').format(date);
+      // Parse the date string as UTC
+      final utcDate = DateTime.parse(dateString);
+      // Add 8 hours to convert to UTC+8
+      final utc8Date = utcDate.add(const Duration(hours: 8));
+      return DateFormat('yyyy-MM-dd HH:mm').format(utc8Date);
     } catch (e) {
       return dateString;
     }

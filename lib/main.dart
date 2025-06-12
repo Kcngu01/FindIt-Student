@@ -341,6 +341,31 @@ class SplashScreen extends StatelessWidget {
                         style: const TextStyle(color: Colors.red),
                       ),
                     ),
+                    const SizedBox(height: 30),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        // Create a new instance of LoginProvider to retry initialization
+                        final loginProvider = Provider.of<LoginProvider>(context, listen: false);
+                        loginProvider.retryInitialization();
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pushReplacementNamed(context, '/login');
+                      },
+                      child: const Text('Go to Login'),
+                    ),
                   ],
                 ),
               )

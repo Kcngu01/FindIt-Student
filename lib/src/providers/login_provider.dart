@@ -215,6 +215,13 @@ class LoginProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  // Method to retry initialization after an error
+  Future<void> retryInitialization() async {
+    // Reset state and retry initialization
+    _error = null;
+    await _initializeToken();
+  }
 }
 // import 'package:flutter/material.dart';
 // import '../models/Student.dart';

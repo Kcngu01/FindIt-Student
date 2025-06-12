@@ -15,6 +15,7 @@ class ItemDetailsScreen extends StatefulWidget {
   final String? similarityScore;
   final int? matchId;
   final int? lostItemId;
+  final bool isMatchDismissed;
 
   const ItemDetailsScreen({
     super.key,
@@ -23,6 +24,7 @@ class ItemDetailsScreen extends StatefulWidget {
     this.similarityScore,
     this.matchId,
     this.lostItemId,
+    this.isMatchDismissed = false,
   });
 
   @override
@@ -58,6 +60,8 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize isMatchDismissed from widget
+    _isMatchDismissed = widget.isMatchDismissed;
     // Use post-frame callback to avoid build-time state changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -425,8 +429,11 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
 
   String _formatDate(String dateString) {
     try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('yyyy-MM-dd HH:mm:ss').format(date);
+      // Parse the date string as UTC
+      final utcDate = DateTime.parse(dateString);
+      // Add 8 hours to convert to UTC+8
+      final utc8Date = utcDate.add(const Duration(hours: 8));
+      return DateFormat('yyyy-MM-dd HH:mm:ss').format(utc8Date);
     } catch (e) {
       return dateString;
     }
@@ -947,7 +954,8 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                   const Divider(height: 32),
                   
                   // Action buttons (hide claim button for recovered items)
-                  if (!isRecoveredFound && item.type=='found')
+                  // Exception: Show "Claimed by Others" button when navigated from potential_match_details and isMatchDismissed is true
+                  if ((!isRecoveredFound && item.type=='found') || (widget.similarityScore != null && _isMatchDismissed))
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

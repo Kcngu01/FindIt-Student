@@ -1,6 +1,6 @@
 class ApiConfig {
   // Base server IP and port
-  static const String serverIP = '192.168.0.118';
+  static const String serverIP = '192.168.0.13';
   // static const String serverIP = '192.168.34.254';
   static const String serverPort = '8000';
   
