@@ -10,13 +10,13 @@ class ApiConfig {
   
   // API endpoints
   static const String apiBasePath = '/api';
-  // static const String baseApiUrl = 'https://findit.pw$apiBasePath';
-  static const String baseApiUrl = '$baseServerUrl$apiBasePath';
+  static const String baseApiUrl = 'https://findit.pw$apiBasePath';
+  // static const String baseApiUrl = '$baseServerUrl$apiBasePath';
   
   // Storage paths
   static const String storagePath = '/storage';
-  // static const String storageBaseUrl = 'https://findit.pw$storagePath';
-  static const String storageBaseUrl = '$baseServerUrl$storagePath';
+  static const String storageBaseUrl = 'https://findit.pw$storagePath';
+  // static const String storageBaseUrl = '$baseServerUrl$storagePath';
   
   // Auth endpoints
   static const String loginEndpoint = '$baseApiUrl/login';

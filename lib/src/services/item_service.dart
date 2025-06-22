@@ -1047,4 +1047,45 @@ class ItemService {
       throw Exception('Failed to fetch faculties: $e');
     }
   }
+
+  // Check if a student has any dismissed matches for a found item
+  Future<bool> checkForDismissedMatches(int foundItemId, int studentId) async {
+    print('Checking for dismissed matches - foundItemId: $foundItemId, studentId: $studentId');
+    try {
+      final token = await _loginService.token;
+      if (token == null) {
+        throw Exception('Authentication token not available');
+      }
+      
+      // First, get all lost items belonging to the student
+      final lostItems = await getMyItemsByStudentId(studentId, 'lost');
+      print('Found ${lostItems.length} lost items for student $studentId');
+      
+      // Check each lost item for potential matches with the found item
+      for (final lostItem in lostItems) {
+        try {
+          final matches = await getPotentialMatches(lostItem.id);
+          print('Checking ${matches.length} potential matches for lost item ${lostItem.id}');
+          
+          // Look for a match with the found item that has been dismissed
+          for (final match in matches) {
+            if (match.foundItemId == foundItemId && 
+                match.matchStatus.toLowerCase() == 'dismissed') {
+              print('Found dismissed match: ${match.id} between lost item ${lostItem.id} and found item $foundItemId');
+              return true;
+            }
+          }
+        } catch (e) {
+          print('Error checking matches for lost item ${lostItem.id}: $e');
+          // Continue checking other lost items
+        }
+      }
+      
+      print('No dismissed matches found for foundItemId: $foundItemId, studentId: $studentId');
+      return false;
+    } catch (e) {
+      print('Error in checkForDismissedMatches: $e');
+      rethrow;
+    }
+  }
 } 

@@ -45,7 +45,7 @@ class FirebaseMessagingService {
 
     // Initialize local notifications
     const AndroidInitializationSettings androidSettings = 
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('notification_icon');
     
     final DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -134,6 +134,8 @@ class FirebaseMessagingService {
         importance: Importance.high,
         priority: Priority.high,
         showWhen: true,
+        icon: 'notification_icon',
+        largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
       );
 
       // Create iOS notification details
@@ -196,6 +198,8 @@ class FirebaseMessagingService {
         'Claim Notifications',
         description: 'Notifications about claim status updates',
         importance: Importance.high,
+        enableLights: true,
+        enableVibration: true,
       );
 
       // Register the channel with the system

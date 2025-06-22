@@ -160,6 +160,7 @@ class _MyAppState extends State<MyApp> {
             late int itemId;
             
             // Handle different argument types
+            // from home_screen.dart pass the arguments to here
             if (args is Item) {
               itemId = args.id;
             } else if (args is int) {
@@ -196,16 +197,21 @@ class _MyAppState extends State<MyApp> {
             bool fromMyItemDetails = false;
             
             // Handle different argument types
+            // from claims_screen.dart pass the arguments to here
             if (args is int) {
               claimId = args;
-            } else if (args is String) {
+            } 
+            // from claims_screen.dart pass the arguments to here
+            else if (args is String) {
               // Try to parse string to int
               try {
                 claimId = int.parse(args);
               } catch (e) {
                 throw ArgumentError('String claim ID could not be parsed to int: $args');
               }
-            } else if (args is Map<String, dynamic>) {
+            } 
+            // from my_item_details_screen.dart pass the arguments to here
+            else if (args is Map<String, dynamic>) {
               // Handle the map argument format from My Claims tab
               claimId = args['claimId'] as int;
               similarityScore = args['similarityScore'] as String?;

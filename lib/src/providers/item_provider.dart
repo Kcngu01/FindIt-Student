@@ -228,20 +228,20 @@ class ItemProvider extends ChangeNotifier {
   
   // Load items for specific user
   Future<void> loadUserItems(int studentId, {String? type = 'lost'}) async {
+    // Set loading state without notifying listeners yet
     _isLoadingUserItems = true;
     _userItemsError = null;
     _userItems = []; // Clear previous items first
-    notifyListeners();
     
     try {
       // Use the _getMyItemsByStudentId method from ItemService
       _userItems = await _itemService.getMyItemsByStudentId(studentId, type ?? 'lost');
-      
       _isLoadingUserItems = false;
-      notifyListeners();
     } catch (e) {
       _userItemsError = e.toString();
       _isLoadingUserItems = false;
+    } finally {
+      // Only notify listeners once at the end
       notifyListeners();
     }
   }

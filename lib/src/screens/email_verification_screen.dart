@@ -263,6 +263,11 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     await loginProvider.logout();
     
     if (!mounted) return;
-    Navigator.of(context).pushReplacementNamed('/login');
+    
+    // Clear the entire navigation stack and go to login screen
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/login',
+      (route) => false, // This predicate returns false for all routes, removing everything
+    );
   }
 } 

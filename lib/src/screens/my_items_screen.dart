@@ -51,7 +51,13 @@ class _MyItemsScreenState extends State<MyItemsScreen> with AutomaticKeepAliveCl
     // If the screen becomes visible and wasn't visible before, reload data
     if (isCurrentlyVisible && !_isVisible && !_isFirstLoad) {
       _isVisible = true;
-      _loadMyItems();
+      
+      // Use post-frame callback to avoid build-time state changes
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadMyItems();
+        }
+      });
     } 
     
     // else if block runs when the user navigates away from this screen to another screen

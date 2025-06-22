@@ -45,9 +45,14 @@ class _AccountScreenState extends State<AccountScreen> {
 
     try {
       await Provider.of<LoginProvider>(context, listen: false).logout();
-      // Navigate to login screen after logout
+      // Navigate to login screen after logout and clear the entire stack
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/login');
+      
+      // This will remove all routes from the stack and push the login route
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/login',
+        (route) => false, // This predicate returns false for all routes, removing everything
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

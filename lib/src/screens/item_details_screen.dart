@@ -42,7 +42,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
   bool _loadingAdditionalDetails = false;
   String? _errorLoadingDetails;
   bool _hasClaimedItem = false;
-  bool _checkingClaimStatus = false;
+  bool _checkingClaimStatus = true;
   
   // Matching lost item for recovered found items
   Item? _matchingLostItem;
@@ -62,6 +62,9 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
     super.initState();
     // Initialize isMatchDismissed from widget
     _isMatchDismissed = widget.isMatchDismissed;
+    // Set checking claim status to true initially
+    _checkingClaimStatus = true;
+    
     // Use post-frame callback to avoid build-time state changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -81,6 +84,35 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
     try {
       // First, load the base item information
       await Provider.of<ItemProvider>(context, listen: false).loadItemDetails(widget.itemId);
+      final itemProvider = Provider.of<ItemProvider>(context, listen: false);
+      final item = itemProvider.currentItem;
+      
+      // Check if this is a found item - only found items can be claimed
+      if (item != null && item.type == 'found') {
+        // Get the current student ID
+        final loginProvider = Provider.of<LoginProvider>(context, listen: false);
+        final currentStudentId = loginProvider.student?.id;
+        
+        if (currentStudentId != null) {
+          // Check if the current student has any dismissed matches for this found item
+          try {
+            final hasDismissedMatches = await _itemService.checkForDismissedMatches(
+              widget.itemId, 
+              currentStudentId
+            );
+            
+            if (mounted) {
+              setState(() {
+                _isMatchDismissed = hasDismissedMatches || widget.isMatchDismissed;
+              });
+            }
+          } catch (e) {
+            print('Error checking for dismissed matches: $e');
+          }
+        } else {
+          print('User not logged in, skipping dismissed match check');
+        }
+      }
 
       // navigated from potential matches
       // Check if we have a match ID and if it's dismissed
@@ -112,8 +144,6 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
         await _checkClaimStatus();
         
         // Load matching information for recovered found items
-        final itemProvider = Provider.of<ItemProvider>(context, listen: false);
-        final item = itemProvider.currentItem;
         if (item != null && item.type == 'found' && item.status == 'resolved') {
           await _loadMatchingLostItem(item);
         }
@@ -286,9 +316,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
       return;
     }
     
-    setState(() {
-      _checkingClaimStatus = true;
-    });
+    // We already set _checkingClaimStatus = true in initState, no need to set it again here
     
     try {
       final hasClaimed = await _itemService.hasClaimedItem(widget.itemId, currentStudentId);
@@ -590,6 +618,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
             const SizedBox(height: 16),
             
             // For recovered found items, show a recovered badge with similarity score
+            // recovered found items use _similarityScore if any but not widget.similarityScore
             if (isRecoveredFound && widget.similarityScore == null)
               Container(
                 width: double.infinity,
@@ -640,8 +669,9 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                       ],
                     ),
                     
-                    // Add similarity score if available
+                    // Add similarity score if available (there is matching lost item)
                     // different from widget.similarityScore because this is for recovered found items
+                    // show item details screen from recovered found items
                     if (_similarityScore != null && _similarityScore!.isNotEmpty)
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -709,6 +739,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
               ),
             
             // Display similarity score if available (for potential matches)
+            // show item details screen from potential_match_details screen
             if (widget.similarityScore != null)
               Column(
                 children: [
@@ -954,6 +985,9 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                   const Divider(height: 32),
                   
                   // Action buttons (hide claim button for recovered items)
+                  // disable claim button if _isMatchDismissed is true
+                  // disable claim button if _hasClaimedItem is true
+                  // disable claim button if _checkingClaimStatus is true
                   // Exception: Show "Claimed by Others" button when navigated from potential_match_details and isMatchDismissed is true
                   if ((!isRecoveredFound && item.type=='found') || (widget.similarityScore != null && _isMatchDismissed))
                     Row(
@@ -962,27 +996,49 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                         SizedBox(
                           width: 200,
                           child: ElevatedButton(
-                            onPressed: (item.type == 'found' && !_hasClaimedItem && !_checkingClaimStatus && !_isMatchDismissed) ? _claimItem : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.green,
                               foregroundColor: Colors.white,
                               disabledBackgroundColor: Colors.grey[300],
+                              disabledForegroundColor: Colors.grey[600],
+                              minimumSize: const Size(double.infinity, 48),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
+                            onPressed: (_isMatchDismissed || _hasClaimedItem || _checkingClaimStatus)
+                                ? null 
+                                : Provider.of<LoginProvider>(context, listen: false).student == null
+                                  ? () => Navigator.of(context).pushNamed('/login')
+                                  : _claimItem,
                             child: Padding(
                               padding: const EdgeInsets.all(12.0),
-                              child: Text(
-                                _hasClaimedItem 
-                                ?'Already Claimed'
-                                  :_isMatchDismissed  
-                                  ?'Claimed by Others/ You have pending claim'  
-                                    :'Claim Item',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              child: _checkingClaimStatus 
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text('Checking...'),
+                                    ],
+                                  )
+                                : Text(
+                                    _hasClaimedItem 
+                                      ? 'Already Claimed'
+                                      : _isMatchDismissed  
+                                        ? 'Claimed by Others/ You have pending claim'  
+                                        : 'Claim Item',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                             ),
                           ),
                         ),

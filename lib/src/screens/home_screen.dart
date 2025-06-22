@@ -68,7 +68,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Logged out successfully')),
       );
-      Navigator.pushReplacementNamed(context, '/login');
+      
+      // Clear the entire navigation stack and go to login screen
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/login',
+        (route) => false, // This predicate returns false for all routes, removing everything
+      );
     } catch (e) {
       if (!mounted) return;
       
